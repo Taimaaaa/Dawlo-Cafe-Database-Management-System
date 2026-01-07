@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="floorplan-page">
+  <div class="floorplan-wrap">
+    <img
+      src="{{ url_for('static', filename='FloorplanBeige.jpg') }}"
+      class="floor-img"
+      alt="Floor Plan"
+    >
+
+    {% for t in tables %}
+
+      {% if t.state == "paid_but_seated" %}
+        <!-- PAID BUT SEATED: SHOW CLOSE SESSION BUTTON -->
+        <div
+          class="table-marker paid_but_seated"
+          style="top: {{ t.pos_top }}%; left: {{ t.pos_left }}%;"
+          title="Paid – close session"
+        >
+          T{{ t.table_id }}
+
+          <form
+            method="post"
+            action="{{ url_for('close_session') }}"
+            class="close-session-form"
+          >
+            <input type="hidden" name="table_id" value="{{ t.table_id }}">
+            <input type="hidden" name="session_start" value="{{ t.active_session_start }}">
+            <button
+              type="submit"
+              onclick="return confirm('Close this table session?')"
+              title="Close session"
+            >
+              ✖
+            </button>
+          </form>
+        </div>
+
+      {% else %}
+        <!-- ALL OTHER STATES: NORMAL CLICKABLE TABLE -->
+        <a
+          class="table-marker {{ t.state }}"
+          style="top: {{ t.pos_top }}%; left: {{ t.pos_left }}%; "
+          href="
+            {% if t.latest_order %}
+              {{ url_for('order_page', order_id=t.latest_order.order_id) }}
+            {% else %}
+              {{ url_for('start_order') }}?table_id={{ t.table_id }}
+            {% endif %}
+          "
+          title="Table {{ t.table_id }}"
+        >
+          T{{ t.table_id }}
+        </a>
+      {% endif %}
+
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

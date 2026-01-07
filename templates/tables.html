@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>🪑 Tables Dashboard</h2>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <button onclick="filterTables('all')">All</button>
+    <button onclick="filterTables('free')">Free</button>
+    <button onclick="filterTables('ordered_waiting')">Ordered</button>
+    <button onclick="filterTables('served_waiting_payment')">Served</button>
+    <button onclick="filterTables('paid_but_seated')">Paid – seated</button>
+  </div>
+
+  <table id="tablesTable">
+    <tr>
+      <th>Table</th>
+      <th>Capacity</th>
+      <th>Session</th>
+      <th>Status</th>
+      <th>Latest Order</th>
+      <th>Action</th>
+    </tr>
+
+    {% for t in tables %}
+    <tr data-state="{{ t.state }}">
+      <td>{{ t.table_id }}</td>
+      <td>{{ t.capacity }}</td>
+
+      <td>
+        {% if t.active_session_start %}
+          {{ t.active_session_start }}<br>
+          <span class="badge">{{ t.session_duration }}</span>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>
+        <span class="status {{ t.state }}">
+          <span class="dot"></span>
+          {{ t.state.replace('_', ' ') }}
+        </span>
+      </td>
+
+      <td>
+        {% if t.latest_order %}
+          <a href="/order/{{ t.latest_order.order_id }}">
+            #{{ t.latest_order.order_id }} — {{ t.latest_order.total }}
+          </a>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+
+      <td>
+        {% if t.can_close %}
+          <form method="post" action="/close_session"
+                onsubmit="return confirm('Close session for this table?');">
+            <input type="hidden" name="table_id" value="{{ t.table_id }}">
+            <input type="hidden" name="session_start" value="{{ t.active_session_start }}">
+            <button class="danger">Close</button>
+          </form>
+        {% else %}
+          —
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<script>
+function filterTables(state) {
+  document.querySelectorAll("#tablesTable tr[data-state]")
+    .forEach(row => {
+      row.style.display =
+        (state === "all" || row.dataset.state === state) ? "" : "none";
+    });
+}
+</script>
+
+{% endblock %}

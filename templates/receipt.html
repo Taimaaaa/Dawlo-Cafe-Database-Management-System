@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      margin-top: 12px;
+    }
+    td {
+      padding: 6px 0;
+    }
+    .total {
+      margin-top: 12px;
+      text-align: right;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>Dawlo Café</h2>
+  <p>Order #{{ order.order_id }}</p>
+  <p>{{ order.order_date }}</p>
+
+  <table>
+    {% for i in items %}
+    <tr>
+      <td>{{ i.item_name }} × {{ i.quantity }}</td>
+      <td style="text-align:right;">{{ i.subtotal }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <p class="total">Total: {{ order.total }}</p>
+  <p style="text-align:center;">Thank you ☕</p>
+</body>
+</html>

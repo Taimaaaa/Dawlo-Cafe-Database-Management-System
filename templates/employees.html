@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Employees</h2>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Position</th>
+        <th>Status</th>
+        <th>Shift</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for e in employees %}
+      <tr>
+        <td>{{ e.emp_id }}</td>
+        <td>{{ e.emp_name }}</td>
+        <td>{{ e.position_title }}</td>
+
+        <!-- ACTIVE / INACTIVE -->
+        <td>
+          {% if e.is_active %}
+            <span class="badge green">Active</span>
+          {% else %}
+            <span class="badge red">Inactive</span>
+          {% endif %}
+        </td>
+
+        <!-- CLOCKED IN / OUT -->
+        <td>
+          {% if e.clocked_in %}
+            <span class="badge blue">Clocked In</span>
+          {% else %}
+            <span class="badge gray">Clocked Out</span>
+          {% endif %}
+        </td>
+
+        <!-- ACTIONS -->
+        <td>
+
+          <!-- ACTIVATE / DEACTIVATE -->
+          <form method="post"
+                action="{{ url_for('toggle_employee_active') }}"
+                style="display:inline;"
+                {% if e.is_active %}
+                onsubmit="return confirm('Are you sure you want to deactivate this employee?');"
+                {% endif %}
+          >
+            <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+            <button type="submit"
+              class="btn {% if e.is_active %}danger{% else %}success{% endif %}">
+              {% if e.is_active %}
+                Deactivate
+              {% else %}
+                Activate
+              {% endif %}
+            </button>
+          </form>
+
+          <!-- CLOCK IN / OUT -->
+          {% if e.is_active %}
+            {% if not e.clocked_in %}
+              <form method="post"
+                    action="{{ url_for('clock_in') }}"
+                    style="display:inline;">
+                <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+                <button class="btn">Clock In</button>
+              </form>
+            {% else %}
+              <form method="post"
+                    action="{{ url_for('clock_out') }}"
+                    style="display:inline;">
+                <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+                <button class="btn dark">Clock Out</button>
+              </form>
+            {% endif %}
+          {% endif %}
+
+          <!-- SHIFT HISTORY (ALWAYS AVAILABLE) -->
+          <a href="{{ url_for('shift_history', emp_id=e.emp_id) }}"
+             class="btn ghost">
+            View Shifts
+          </a>
+
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

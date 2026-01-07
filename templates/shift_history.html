@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Shift History</h2>
+
+  <p style="opacity:0.8; margin-bottom:16px;">
+    {{ employee.emp_name }} — {{ employee.position_title }}
+  </p>
+
+  {% if shifts %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Start</th>
+          <th>End</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in shifts %}
+        <tr>
+          <td>{{ s.shift_start }}</td>
+
+          <td>
+            {% if s.shift_end %}
+              {{ s.shift_end }}
+            {% else %}
+              <span class="badge blue">Ongoing</span>
+            {% endif %}
+          </td>
+
+          <td>
+            {{ s.duration_min }} min
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">No shifts recorded for this employee.</p>
+  {% endif %}
+
+  <a href="{{ url_for('employees_dashboard') }}" class="btn ghost">
+    Back to Employees
+  </a>
+</div>
+
+{% endblock %}

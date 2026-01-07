@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <title>Dawlo Café Management</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+<header class="topbar">
+  <div class="left">
+    <img src="{{ url_for('static', filename='dawlo-logo.png') }}" class="logo-img">
+  </div>
+
+  <div class="center">
+    <h1>Dawlo Café</h1>
+    <p>Management System</p>
+  </div>
+
+  <nav class="right">
+    <a href="/tables" class="{{ 'active' if request.path == '/tables' else '' }}">🪑 Tables</a>
+    <a href="/start_order" class="{{ 'active' if request.path == '/start_order' else '' }}">➕ New Order</a>
+    <a href="/orders" class="{{ 'active' if request.path == '/orders' else '' }}">🧾 Orders</a>
+    <a href="/floorplan"> 📐 Floor Map</a>
+    <button onclick="toggleTheme()">🌙</button>
+  </nav>
+</header>
+
+<div class="{% if full_width %}container-full{% else %}container{% endif %}">
+  {% block content %}{% endblock %}
+</div>
+
+
+<script>
+function toggleTheme() {
+  document.body.classList.toggle("dark");
+  localStorage.setItem("theme",
+    document.body.classList.contains("dark") ? "dark" : "light");
+}
+
+if (localStorage.getItem("theme") === "dark") {
+  document.body.classList.add("dark");
+}
+</script>
+</body>
+</html>
