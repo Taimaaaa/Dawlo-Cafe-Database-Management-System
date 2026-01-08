@@ -215,8 +215,17 @@ insert into Table_Entity (capacity) values
 (2),
 (4),
 (4),
-(6),
-(10);
+(4),
+(4),
+(7),
+(7),
+(2),
+(2),
+(2),
+(2),
+(2),
+(2),
+(6);
 
 
 show tables;
