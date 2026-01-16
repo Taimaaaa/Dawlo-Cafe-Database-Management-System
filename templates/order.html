@@ -1,20 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 
+<!-- ================= ORDER HEADER ================= -->
 <div class="card">
   <h2>🧾 Order #{{ order.order_id }}</h2>
   <p>Status: <b>{{ order.order_status }}</b></p>
   <p>Total: <b>{{ order.total }}</b></p>
 </div>
 
+<!-- ================= ADD ITEM ================= -->
 <div class="card">
   <h3>➕ Add Item</h3>
 
-  {% if not paid %}
+  {% if order.order_status == 'cancelled' %}
+    <div class="alert danger">
+      ❌ This order has been cancelled. No changes allowed.
+    </div>
+  {% endif %}
+
+  {% if not paid and order.order_status != 'cancelled' %}
   <form method="post">
     <input type="hidden" name="action" value="add">
 
-    <select name="menu_item_id">
+    <select name="menu_item_id" required>
       {% for m in menu_items %}
         <option value="{{ m.item_id }}">{{ m.item_name }} ({{ m.price }})</option>
       {% endfor %}
@@ -23,11 +31,12 @@
     <input type="number" name="quantity" min="1" required>
     <button>Add</button>
   </form>
-  {% else %}
+  {% elif paid %}
     <p class="empty">Order is paid. No changes allowed.</p>
   {% endif %}
 </div>
 
+<!-- ================= ITEMS ================= -->
 <div class="card">
   <h3>Items</h3>
 
@@ -37,19 +46,36 @@
       <li>
         {{ i.item_name }} × {{ i.quantity }} = {{ i.subtotal }}
 
-        {% if not paid %}
-          <form method="post" style="display:inline;">
-            <input type="hidden" name="action" value="decrement_item">
-            <input type="hidden" name="menu_item_id" value="{{ i.menu_item_id }}">
-            <button>-1</button>
-          </form>
+        <span class="badge">{{ i.item_status|upper }}</span>
 
-          <form method="post" style="display:inline;"
-                onsubmit="return confirm('Remove this item?');">
-            <input type="hidden" name="action" value="remove_item">
-            <input type="hidden" name="menu_item_id" value="{{ i.menu_item_id }}">
-            <button class="danger">Remove</button>
-          </form>
+        {% if not paid and order.order_status != 'cancelled' %}
+
+          {% if i.item_status == 'ordered' %}
+            <!-- -1 -->
+            <form method="post" style="display:inline;">
+              <input type="hidden" name="action" value="decrement_item">
+              <input type="hidden" name="menu_item_id" value="{{ i.menu_item_id }}">
+              <button>-1</button>
+            </form>
+
+            <!-- cancel item -->
+            <form method="post" style="display:inline;"
+                  onsubmit="return confirm('Cancel this item?');">
+              <input type="hidden" name="action" value="cancel_item">
+              <input type="hidden" name="menu_item_id" value="{{ i.menu_item_id }}">
+              <button class="danger small">Cancel</button>
+            </form>
+          {% endif %}
+
+          {% if i.item_status == 'cancelled' %}
+            <!-- uncancel -->
+            <form method="post" style="display:inline;">
+              <input type="hidden" name="action" value="uncancel_item">
+              <input type="hidden" name="menu_item_id" value="{{ i.menu_item_id }}">
+              <button>Uncancel</button>
+            </form>
+          {% endif %}
+
         {% endif %}
       </li>
     {% endfor %}
@@ -59,32 +85,37 @@
   {% endif %}
 </div>
 
+<!-- ================= ACTIONS ================= -->
 <div class="card">
   <h3>Actions</h3>
 
-  <form method="post" style="display:inline;">
-    <button name="action" value="served">Mark Served</button>
-  </form>
+  {% if order.order_status == 'ordered' %}
+    <form method="post" style="display:inline;">
+      <button name="action" value="served">Mark Served</button>
+    </form>
 
-  {% if not paid %}
-  <form method="post" style="display:inline;">
-    <input type="hidden" name="action" value="pay">
-    <select name="method">
-      <option value="cash">Cash</option>
-      <option value="card">Card</option>
-    </select>
-    <button>Pay</button>
-  </form>
+    <form method="post" style="display:inline;"
+          onsubmit="return confirm('Cancel the order?');">
+      <input type="hidden" name="action" value="cancel_order">
+      <button class="danger">Cancel Order</button>
+    </form>
+  {% endif %}
 
-  <form method="post" onsubmit="return confirm('Delete entire order?');">
-    <input type="hidden" name="action" value="delete_order">
-    <button class="danger">Delete Order</button>
-  </form>
+  {% if not paid and order.order_status in ['ordered', 'served'] %}
+    <form method="post" style="display:inline;">
+      <input type="hidden" name="action" value="pay">
+      <select name="method">
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+      </select>
+      <button>Pay</button>
+    </form>
   {% endif %}
 </div>
+
+<!-- ================= RECEIPT ================= -->
 <div id="receiptFlag" data-open="{{ 1 if message == 'paid' else 0 }}"></div>
 
-<!-- RECEIPT MODAL -->
 <div id="receiptModal" class="modal">
   <div class="modal-content">
     <button class="close-btn" onclick="closeReceipt()">✕</button>
@@ -99,57 +130,60 @@ function closeReceipt() {
 
 document.addEventListener("DOMContentLoaded", function () {
   const flag = document.getElementById("receiptFlag");
-  const shouldOpenReceipt = flag && flag.dataset.open === "1";
-
-  if (shouldOpenReceipt) {
+  if (flag && flag.dataset.open === "1") {
     document.getElementById("receiptModal").style.display = "flex";
   }
 });
 </script>
 
- <hr>
+<hr>
 
-  <h3>Assigned Employees</h3>
+<!-- ================= EMPLOYEES ================= -->
+<h3>Assigned Employees</h3>
 
-  {% if assigned_employees %}
-    <ul>
-      {% for e in assigned_employees %}
-        <li>
-          {{ e.emp_name }} — {{ e.position_title }}
+{% if assigned_employees %}
+  <ul>
+    {% for e in assigned_employees %}
+      <li>
+        {{ e.emp_name }} — {{ e.position_title }}
 
-          {% if not paid %}
-          <form method="post" style="display:inline;">
-            <input type="hidden" name="action" value="remove_employee">
-            <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
-            <button class="btn small danger">Remove</button>
-          </form>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p class="muted">No employees assigned yet.</p>
-  {% endif %}
+        {% if not paid and order.order_status == 'ordered' %}
+        <form method="post" style="display:inline;">
+          <input type="hidden" name="action" value="remove_employee">
+          <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+          <button class="btn small danger">Remove</button>
+        </form>
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="muted">No employees assigned yet.</p>
+{% endif %}
 
-  <!-- ================= ASSIGN EMPLOYEE ================= -->
-  {% if not paid and available_employees %}
-    <h4>Assign Employee</h4>
+{% if not paid and order.order_status == 'ordered' and available_employees %}
+<h4>Assign Employee</h4>
 
-    <form method="post">
-      <input type="hidden" name="action" value="assign_employee">
+<form method="post" action="{{ url_for('assign_employee') }}">
+  <input type="hidden" name="order_id" value="{{ order.order_id }}">
 
-      <select name="emp_id" required>
-        {% for e in available_employees %}
-          <option value="{{ e.emp_id }}">
-            {{ e.emp_name }} ({{ e.position_title }})
-          </option>
-        {% endfor %}
-      </select>
+  <select name="emp_id" required>
+    {% for e in available_employees %}
+      <option value="{{ e.emp_id }}">
+        {{ e.emp_name }} ({{ e.position_title }})
+      </option>
+    {% endfor %}
+  </select>
 
-      <button class="btn">Assign</button>
-    </form>
-  {% endif %}
+  <select name="role" required>
+    <option value="server">Server</option>
+    <option value="barista">Barista</option>
+    <option value="cashier">Cashier</option>
+    <option value="kitchen">Kitchen</option>
+  </select>
 
-</div>
+  <button class="btn">Assign</button>
+</form>
+{% endif %}
 
 {% endblock %}

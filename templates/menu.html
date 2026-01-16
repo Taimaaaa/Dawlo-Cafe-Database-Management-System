@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>🍽️ Menu Items</h2>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+    <button onclick="filterMenu('all')">All</button>
+    <button onclick="filterMenu('available')">Available</button>
+    <button onclick="filterMenu('unavailable')">Unavailable</button>
+    </div>
+
+    <form method="get" class="search-bar">
+
+  <select name="field" required>
+    <option value="item_id"
+      {% if request.args.get('field') == 'item_id' %}selected{% endif %}>
+      Item ID
+    </option>
+
+    <option value="item_name"
+      {% if request.args.get('field') == 'item_name' %}selected{% endif %}>
+      Name
+    </option>
+
+    <option value="category"
+      {% if request.args.get('field') == 'category' %}selected{% endif %}>
+      Category
+    </option>
+
+    <option value="price"
+      {% if request.args.get('field') == 'price' %}selected{% endif %}>
+      Price
+    </option>
+
+    <option value="date_added"
+      {% if request.args.get('field') == 'date_added' %}selected{% endif %}>
+      Date Added (YYYY-MM-DD)
+    </option>
+  </select>
+
+  <input
+    type="text"
+    name="search"
+    placeholder="Search…"
+    value="{{ request.args.get('search', '') }}"
+    required
+  >
+
+</form>
+
+    {% if session.position_title == "manager" %}
+    <div class="toolbar">
+    <a href="/menu/add" class="btn-secondary">+ Add Menu Item</a>
+    </div>
+    {% endif %}
+
+  <table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Category</th>
+      <th>Price</th>
+      <th>Date Added</th>
+      <th>Status</th>
+      {% if session.position_title == "manager" %}
+      <th>Actions</th>
+      {% endif %}
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for item in items %}
+    <tr data-available="{{ 'available' if item.is_available else 'unavailable' }}">
+      <td>{{ item.item_id }}</td>
+      <td>{{ item.item_name }}</td>
+      <td>{{ item.category }}</td>
+      <td>{{ "%.2f"|format(item.price) }}</td>
+      <td>{{ item.date_added }}</td>
+      <td>
+        {% if item.is_available %}Available{% else %}Unavailable{% endif %}
+      </td>
+
+      {% if session.position_title == "manager" %}
+      <td>
+        <a href="/menu/edit/{{ item.item_id }}">Edit</a> |
+        <form action="/menu/toggle/{{ item.item_id }}" method="post" style="display:inline">
+          <button type="submit" class="link-btn">
+            {% if item.is_available %}Disable{% else %}Enable{% endif %}
+          </button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if request.args.get('search') %}
+<a href="{{ url_for('menu_items') }}" class="btn-secondary">
+  ← Back to Menu
+</a>
+{% endif %}
+
+
+  <script>
+function filterMenu(filter) {
+  document.querySelectorAll("tbody tr").forEach(row => {
+    const availability = row.dataset.available;
+
+    let show = false;
+
+    if (filter === "all") show = true;
+    if (filter === "available" && availability === "available") show = true;
+    if (filter === "unavailable" && availability === "unavailable") show = true;
+
+    row.style.display = show ? "" : "none";
+  });
+}
+</script>
+
+</div>
+
+{% endblock %}

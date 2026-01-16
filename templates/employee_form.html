@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>{{ 'Edit Employee' if employee else 'Add New Employee' }}</h2>
+
+<form method="post">
+
+  <label>Name</label>
+  <input type="text" name="emp_name"
+         value="{{ employee.emp_name if employee else '' }}" required>
+
+  <label>Phone</label>
+  <input type="text" name="phone_number"
+         value="{{ employee.phone_number if employee else '' }}" required>
+
+  <label>Position</label>
+  <select name="position_title" required>
+    <option value="cashier" {% if employee and employee.position_title=='cashier' %}selected{% endif %}>Cashier</option>
+    <option value="waiter" {% if employee and employee.position_title=='waiter' %}selected{% endif %}>Waiter</option>
+    <option value="barista" {% if employee and employee.position_title=='barista' %}selected{% endif %}>Barista</option>
+    <option value="kitchen" {% if employee and employee.position_title=='kitchen' %}selected{% endif %}>Kitchen</option>
+    <option value="cleaner" {% if employee and employee.position_title=='cleaner' %}selected{% endif %}>Cleaner</option>
+    <option value="manager" {% if employee and employee.position_title=='manager' %}selected{% endif %}>Manager</option>
+  </select>
+
+  <label>Salary</label>
+  <input type="number" step="0.01" name="salary"
+         value="{{ employee.salary if employee else '' }}" required>
+
+  <label>Date Hired</label>
+  <input type="date" name="date_hired"
+         value="{{ employee.date_hired.strftime('%Y-%m-%d') if employee and employee.date_hired else '' }}"
+         required>
+
+  <button type="submit">
+    {{ 'Update Employee' if employee else 'Add Employee' }}
+  </button>
+
+</form>
+
+</div>
+
+{% endblock %}

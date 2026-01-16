@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>{{ 'Edit Supplier' if supplier else 'Add New Supplier' }}</h2>
+
+  <form method="post">
+
+    <label>Supplier Name</label>
+    <input type="text"
+           name="supplier_name"
+           value="{{ supplier.supplier_name if supplier else '' }}"
+           required>
+
+    <label>Phone</label>
+    <input type="text"
+           name="phone_number"
+           value="{{ supplier.phone_number if supplier else '' }}">
+
+    <button type="submit">
+      {{ 'Update Supplier' if supplier else 'Add Supplier' }}
+    </button>
+
+    <a href="{{ url_for('suppliers') }}" class="btn-secondary">
+      Cancel
+    </a>
+
+  </form>
+
+</div>
+
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Customers</h2>
+
+  <!-- SEARCH BAR (same as Orders) -->
+  <form method="get" class="search-bar">
+
+    <select name="field" required>
+      <option value="customer_id"
+        {% if request.args.get('field') == 'customer_id' %}selected{% endif %}>
+        ID
+      </option>
+
+      <option value="customer_name"
+        {% if request.args.get('field') == 'customer_name' %}selected{% endif %}>
+        Name
+      </option>
+
+      <option value="phone_number"
+        {% if request.args.get('field') == 'phone_number' %}selected{% endif %}>
+        Phone
+      </option>
+
+      <option value="email"
+        {% if request.args.get('field') == 'email' %}selected{% endif %}>
+        Email
+      </option>
+    </select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search..."
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+
+  </form>
+
+  <!-- ACTION BUTTON (same pattern as Orders pages) -->
+  <a href="{{ url_for('add_customer') }}" class="btn-secondary">
+    + Add New Customer
+  </a>
+
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Phone</th>
+      <th>Email</th>
+      <th></th>
+    </tr>
+
+    {% for c in customers %}
+    <tr>
+      <td>{{ c.customer_id }}</td>
+      <td>{{ c.customer_name }}</td>
+      <td>{{ c.phone_number }}</td>
+      <td>{{ c.email }}</td>
+      <td>
+        <a href="{{ url_for('edit_customer', customer_id=c.customer_id) }}"
+           class="btn-secondary">
+          Edit
+        </a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% if customers|length == 0 %}
+    <p class="empty">No customers found.</p>
+  {% endif %}
+
+  {% if request.args.get('search') %}
+  <a href="{{ url_for('customers_list') }}" class="btn-secondary">
+    ← Back to Customers
+  </a>
+  {% endif %}
+
+</div>
+
+{% endblock %}

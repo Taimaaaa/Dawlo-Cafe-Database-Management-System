@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>{{ 'Edit Menu Item' if item else 'Add Menu Item' }}</h2>
+
+  <form method="post">
+
+    <label>Name</label>
+    <input
+      type="text"
+      name="item_name"
+      value="{{ item.item_name if item else '' }}"
+      required
+    >
+
+    <label>Category</label>
+    <input
+      type="text"
+      name="category"
+      value="{{ item.category if item else '' }}"
+    >
+
+    <label>Price</label>
+    <input
+      type="number"
+      step="0.01"
+      name="price"
+      value="{{ item.price if item else '' }}"
+      required
+    >
+
+    <button type="submit">
+      {{ 'Update Item' if item else 'Add Item' }}
+    </button>
+
+  </form>
+
+</div>
+
+{% endblock %}

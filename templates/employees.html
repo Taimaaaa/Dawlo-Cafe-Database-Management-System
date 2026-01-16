@@ -4,13 +4,74 @@
 <div class="card">
   <h2>Employees</h2>
 
+  <div class="filter-bar">
+    <button onclick="filterEmployees('all')">All</button>
+    <button onclick="filterEmployees('active')">Active</button>
+    <button onclick="filterEmployees('inactive')">Inactive</button>
+    <button onclick="filterEmployees('clocked_in')">Clocked In</button>
+    <button onclick="filterEmployees('clocked_out')">Clocked Out</button>
+  </div>
+
+  <!-- SEARCH (same as Menu) -->
+  <form method="get" class="search-bar">
+    <select name="field" required>
+  <option value="emp_id"
+    {% if request.args.get('field') == 'emp_id' %}selected{% endif %}>
+    ID
+  </option>
+
+  <option value="emp_name"
+    {% if request.args.get('field') == 'emp_name' %}selected{% endif %}>
+    Name
+  </option>
+
+  <option value="phone_number"
+    {% if request.args.get('field') == 'phone_number' %}selected{% endif %}>
+    Phone
+  </option>
+
+  <option value="position_title"
+    {% if request.args.get('field') == 'position_title' %}selected{% endif %}>
+    Position
+  </option>
+
+  <option value="salary"
+    {% if request.args.get('field') == 'salary' %}selected{% endif %}>
+    Salary
+  </option>
+
+  <option value="date_hired"
+    {% if request.args.get('field') == 'date_hired' %}selected{% endif %}>
+    Date Hired (YYYY-MM-DD)
+  </option>
+</select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search…"
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+  </form>
+
+  <!-- ACTION BUTTON (same as Menu) -->
+  <div class="toolbar">
+    <a href="{{ url_for('add_employee') }}" class="btn-secondary">
+      + Add New Employee
+    </a>
+  </div>
+
   <table class="table">
     <thead>
       <tr>
         <th>ID</th>
         <th>Name</th>
+        <th>Phone</th>
         <th>Position</th>
         <th>Status</th>
+        <th>Salary</th>
+        <th>Date Hired</th>
         <th>Shift</th>
         <th>Actions</th>
       </tr>
@@ -18,81 +79,91 @@
 
     <tbody>
       {% for e in employees %}
-      <tr>
-        <td>{{ e.emp_id }}</td>
-        <td>{{ e.emp_name }}</td>
-        <td>{{ e.position_title }}</td>
+      <tr
+      data-active="{{ 'active' if e.is_active else 'inactive' }}"
+      data-shift="{{ 'clocked_in' if e.clocked_in else 'clocked_out' }}">
 
-        <!-- ACTIVE / INACTIVE -->
-        <td>
-          {% if e.is_active %}
-            <span class="badge green">Active</span>
-          {% else %}
-            <span class="badge red">Inactive</span>
-          {% endif %}
-        </td>
+  <td>{{ e.emp_id }}</td>
+  <td>{{ e.emp_name }}</td>
+  <td>{{ e.phone_number or "—" }}</td>
+  <td>{{ e.position_title }}</td>
 
-        <!-- CLOCKED IN / OUT -->
-        <td>
-          {% if e.clocked_in %}
-            <span class="badge blue">Clocked In</span>
-          {% else %}
-            <span class="badge gray">Clocked Out</span>
-          {% endif %}
-        </td>
+  <td>
+    {% if e.is_active %}
+      <span class="badge green">Active</span>
+    {% else %}
+      <span class="badge red">Inactive</span>
+    {% endif %}
+  </td>
 
-        <!-- ACTIONS -->
-        <td>
+  <td>{{ e.salary or "—" }}</td>
 
-          <!-- ACTIVATE / DEACTIVATE -->
-          <form method="post"
-                action="{{ url_for('toggle_employee_active') }}"
-                style="display:inline;"
-                {% if e.is_active %}
-                onsubmit="return confirm('Are you sure you want to deactivate this employee?');"
-                {% endif %}
-          >
-            <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
-            <button type="submit"
-              class="btn {% if e.is_active %}danger{% else %}success{% endif %}">
-              {% if e.is_active %}
-                Deactivate
-              {% else %}
-                Activate
-              {% endif %}
-            </button>
-          </form>
+<td>
+  {{ e.date_hired.strftime('%Y-%m-%d') if e.date_hired else "—" }}
+</td>
 
-          <!-- CLOCK IN / OUT -->
-          {% if e.is_active %}
-            {% if not e.clocked_in %}
-              <form method="post"
-                    action="{{ url_for('clock_in') }}"
-                    style="display:inline;">
-                <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
-                <button class="btn">Clock In</button>
-              </form>
-            {% else %}
-              <form method="post"
-                    action="{{ url_for('clock_out') }}"
-                    style="display:inline;">
-                <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
-                <button class="btn dark">Clock Out</button>
-              </form>
-            {% endif %}
-          {% endif %}
+<td>
+  {% if e.clocked_in %}
+    <span class="badge blue">Clocked In</span>
+  {% else %}
+    <span class="badge gray">Clocked Out</span>
+  {% endif %}
+</td>
 
-          <!-- SHIFT HISTORY (ALWAYS AVAILABLE) -->
-          <a href="{{ url_for('shift_history', emp_id=e.emp_id) }}"
-             class="btn ghost">
-            View Shifts
-          </a>
 
-        </td>
-      </tr>
+  <td>
+    <form method="post"
+          action="{{ url_for('toggle_employee_active') }}"
+          style="display:inline;">
+      <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+      <button type="submit" class="btn danger">Deactivate</button>
+    </form>
+
+    <a href="{{ url_for('shift_history', emp_id=e.emp_id) }}"
+       class="btn-link">
+      View Shifts
+    </a>
+
+    <a href="{{ url_for('edit_employee', emp_id=e.emp_id) }}"
+       class="btn-link">
+      Edit
+    </a>
+  </td>
+</tr>
+
       {% endfor %}
     </tbody>
   </table>
+
+
+  {% if employees|length == 0 %}
+    <p class="empty">No employees found.</p>
+  {% endif %}
 </div>
+
+{% if request.args.get('search') %}
+<a href="{{ url_for('employees_dashboard') }}" class="btn-secondary">
+  ← Back to Employees
+</a>
+{% endif %}
+
+<script>
+function filterEmployees(filter) {
+  document.querySelectorAll("tbody tr").forEach(row => {
+    const active = row.dataset.active;
+    const shift = row.dataset.shift;
+
+    let show = false;
+
+    if (filter === "all") show = true;
+    if (filter === "active" && active === "active") show = true;
+    if (filter === "inactive" && active === "inactive") show = true;
+    if (filter === "clocked_in" && shift === "clocked_in") show = true;
+    if (filter === "clocked_out" && shift === "clocked_out") show = true;
+
+    row.style.display = show ? "" : "none";
+  });
+}
+</script>
 
 {% endblock %}

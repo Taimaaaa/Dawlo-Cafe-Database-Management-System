@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>💳 Payments</h2>
+
+    <div class="filter-bar">
+    <button onclick="filterPayments('all')">All</button>
+    <button onclick="filterPayments('cash')">Cash</button>
+    <button onclick="filterPayments('card')">Card</button>
+    <button onclick="filterPayments('order')">Orders</button>
+    <button onclick="filterPayments('purchase')">Purchases</button>
+    </div>
+    
+    <form method="get" class="search-bar">
+
+  <select name="field" required>
+    <option value="payment_id"
+      {% if request.args.get('field') == 'payment_id' %}selected{% endif %}>
+      Payment ID
+    </option>
+
+    <option value="order_id"
+      {% if request.args.get('field') == 'order_id' %}selected{% endif %}>
+      Order ID
+    </option>
+
+    <option value="payment_date"
+      {% if request.args.get('field') == 'payment_date' %}selected{% endif %}>
+      Date (YYYY-MM-DD)
+    </option>
+
+    <option value="amount"
+      {% if request.args.get('field') == 'amount' %}selected{% endif %}>
+      Amount
+    </option>
+  </select>
+
+  <input
+    type="text"
+    name="search"
+    placeholder="Search..."
+    value="{{ request.args.get('search', '') }}"
+    required
+  >
+
+</form>
+
+
+  <table id="paymentsTable">
+  <tr>
+    <th>ID</th>
+    <th>Date</th>
+    <th>Amount</th>
+    <th>Method</th>
+    <th>Type</th>
+    <th>Order</th>
+  </tr>
+
+  {% for p in payments %}
+  <tr
+    data-method="{{ p.method }}"
+    data-type="{{ p.payment_type }}"
+  >
+    <td>{{ p.payment_id }}</td>
+    <td>{{ p.payment_date }}</td>
+    <td>{{ p.amount }}</td>
+    <td>{{ p.method }}</td>
+    <td>{{ p.payment_type }}</td>
+    <td>
+      {% if p.order_id %}
+        <a href="/order/{{ p.order_id }}">#{{ p.order_id }}</a>
+      {% else %}
+        —
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if request.args.get('search') %}
+<a href="{{ url_for('payments') }}" class="btn-secondary">
+  ← Back to Payments
+</a>
+{% endif %}
+
+  <script>
+function filterPayments(filter) {
+  document.querySelectorAll("#paymentsTable tr[data-method]")
+    .forEach(row => {
+      const method = row.dataset.method;
+      const type = row.dataset.type;
+
+      let show = false;
+
+      if (filter === "all") show = true;
+      if (filter === "cash" && method === "cash") show = true;
+      if (filter === "card" && method === "card") show = true;
+      if (filter === "order" && type === "order") show = true;
+      if (filter === "purchase" && type === "purchase") show = true;
+
+      row.style.display = show ? "" : "none";
+    });
+}
+</script>
+
+</div>
+
+{% endblock %}

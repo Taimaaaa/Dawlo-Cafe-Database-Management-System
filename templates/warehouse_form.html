@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>{{ 'Edit Warehouse Item' if item else 'Add Warehouse Item' }}</h2>
+
+  <form method="post">
+
+    <label>Item Name</label>
+    <input type="text"
+           name="item_name"
+           value="{{ item.item_name if item else '' }}"
+           required>
+
+    <label>Stock Quantity</label>
+    <input type="number" step="0.01"
+           name="stock_quantity"
+           value="{{ item.stock_quantity if item else '' }}"
+           required>
+
+    <label>Reorder Level</label>
+    <input type="number" step="0.01"
+           name="reorder_level"
+           value="{{ item.reorder_level if item else '' }}"
+           required>
+
+    <label>Unit of Measure</label>
+    <input type="text"
+           name="unit_of_measure"
+           placeholder="kg, pcs, liters..."
+           value="{{ item.unit_of_measure if item else '' }}"
+           required>
+
+    <button type="submit">
+      {{ 'Update Item' if item else 'Add Item' }}
+    </button>
+
+    <a href="{{ url_for('warehouse_items') }}" class="btn-secondary">
+      Cancel
+    </a>
+
+  </form>
+</div>
+
+{% endblock %}

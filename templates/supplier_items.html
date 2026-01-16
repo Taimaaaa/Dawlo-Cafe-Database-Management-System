@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Suppliers & Items</h2>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <button onclick="filterSupplierItems('all')">All</button>
+    <button onclick="filterSupplierItems('supplying')">Supplying</button>
+    <button onclick="filterSupplierItems('stopped')">Not Supplying</button>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <form method="get" class="search-bar">
+    <select name="field" required>
+      <option value="supplier_id"
+        {% if request.args.get('field') == 'supplier_id' %}selected{% endif %}>
+        Supplier ID
+      </option>
+
+      <option value="supplier_name"
+        {% if request.args.get('field') == 'supplier_name' %}selected{% endif %}>
+        Supplier Name
+      </option>
+
+      <option value="warehouse_item_id"
+        {% if request.args.get('field') == 'warehouse_item_id' %}selected{% endif %}>
+        Item ID
+      </option>
+
+      <option value="item_name"
+        {% if request.args.get('field') == 'item_name' %}selected{% endif %}>
+        Item Name
+      </option>
+
+      <option value="avg_delivery_days"
+        {% if request.args.get('field') == 'avg_delivery_days' %}selected{% endif %}>
+        Avg Delivery Days
+      </option>
+    </select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search…"
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+  </form>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Supplier ID</th>
+        <th>Supplier</th>
+        <th>Item ID</th>
+        <th>Item</th>
+        <th>Unit</th>
+        <th>Unit Price</th>
+        <th>Avg Delivery (Days)</th>
+        <th>Status</th>
+        {% if session.position_title == "manager" %}
+        <th>Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for s in suppliers %}
+      <tr data-supplying="{{ 'supplying' if s.is_supplying else 'stopped' }}">
+        <td>{{ s.supplier_id }}</td>
+        <td>{{ s.supplier_name }}</td>
+        <td>{{ s.item_id }}</td>
+        <td>{{ s.item_name }}</td>
+        <td>{{ s.unit_of_measure }}</td>
+        <td>{{ s.unit_price }}</td>
+        <td>{{ s.avg_delivery_days }}</td>
+
+        <td>
+          {% if s.is_supplying %}
+            <span class="badge green">Supplying</span>
+          {% else %}
+            <span class="badge red">Stopped</span>
+          {% endif %}
+        </td>
+
+        {% if session.position_title == "manager" %}
+        <td>
+          <form method="post"
+                action="{{ url_for('toggle_supplier_item_supplying') }}"
+                style="display:inline;">
+            <input type="hidden" name="supplier_id" value="{{ s.supplier_id }}">
+            <input type="hidden" name="warehouse_item_id" value="{{ s.item_id }}">
+            <button type="submit" class="btn danger">
+              {% if s.is_supplying %}
+                Stop Supplying
+              {% else %}
+                Resume Supplying
+              {% endif %}
+            </button>
+          </form>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if suppliers|length == 0 %}
+    <p class="empty">No supplier items found.</p>
+  {% endif %}
+</div>
+
+{% if request.args.get('search') %}
+<a href="{{ url_for('supplier_items') }}" class="btn-secondary">
+  ← Back to Supplier Items
+</a>
+{% endif %}
+
+<script>
+function filterSupplierItems(filter) {
+  document.querySelectorAll("tbody tr").forEach(row => {
+    const supplying = row.dataset.supplying;
+
+    let show = false;
+
+    if (filter === "all") show = true;
+    if (filter === "supplying" && supplying === "supplying") show = true;
+    if (filter === "stopped" && supplying === "stopped") show = true;
+
+    row.style.display = show ? "" : "none";
+  });
+}
+</script>
+
+{% endblock %}

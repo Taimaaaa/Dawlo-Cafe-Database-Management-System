@@ -9,8 +9,15 @@
 
 <body>
 <header class="topbar">
-  <div class="left">
+
+  <div class="nav-left">
     <img src="{{ url_for('static', filename='dawlo-logo.png') }}" class="logo-img">
+
+    {% if session.get("emp_id") %}
+      <a href="/tables" class="{{ 'active' if request.path == '/tables' else '' }}">🪑 Tables</a>
+      <a href="/floorplan" class="{{ 'active' if request.path == '/floorplan' else '' }}">📐 Floor Map</a>
+      <a href="/customers" class="{{ 'active' if request.path.startswith('/customers') else '' }}"> 👤 Customers</a>
+    {% endif %}
   </div>
 
   <div class="center">
@@ -18,25 +25,50 @@
     <p>Management System</p>
   </div>
 
-  <nav class="right">
-    <a href="/tables" class="{{ 'active' if request.path == '/tables' else '' }}">🪑 Tables</a>
-    <a href="/start_order" class="{{ 'active' if request.path == '/start_order' else '' }}">➕ New Order</a>
-    <a href="/orders" class="{{ 'active' if request.path == '/orders' else '' }}">🧾 Orders</a>
-    <a href="/floorplan"> 📐 Floor Map</a>
-    <button onclick="toggleTheme()">🌙</button>
-  </nav>
+  {% if session.get("emp_id") %}
+  <div class="nav-right">
+
+    <a href="/start_order">➕ New Order</a>
+    <a href="/orders">🧾 Orders</a>
+    <a href="{{ url_for('shift_history', emp_id=session.emp_id) }}">⏱ My Shifts</a>
+
+    {% if session.get("position_title") == "manager" %}
+    <div class="dropdown">
+      <span class="dropbtn">📊 Management ▾</span>
+      <div class="dropdown-menu">
+        <a href="/employees">Employees</a>
+        <a href="/suppliers">Suppliers</a>
+        <a href="/supplier_items">Supplier Items</a>
+        <a href="/warehouse">Warehouse</a>
+        <a href="/purchases">Purchases</a>
+        <a href="/stock_movements">Stock Movements</a>
+        <a href="/menu">Menu Items</a>
+        <a href="/payments">Payments</a>
+      </div>
+    </div>
+    {% endif %}
+
+    <a href="/logout">🚪 Logout</a>
+    <button class="theme-btn" onclick="toggleTheme()">🌙</button>
+
+  </div>
+  {% endif %}
+
 </header>
 
-<div class="{% if full_width %}container-full{% else %}container{% endif %}">
+
+<div class="{% if full_width %}container-full{% elif wide %}container-wide{% else %}container{% endif %}">
+
   {% block content %}{% endblock %}
 </div>
-
 
 <script>
 function toggleTheme() {
   document.body.classList.toggle("dark");
-  localStorage.setItem("theme",
-    document.body.classList.contains("dark") ? "dark" : "light");
+  localStorage.setItem(
+    "theme",
+    document.body.classList.contains("dark") ? "dark" : "light"
+  );
 }
 
 if (localStorage.getItem("theme") === "dark") {

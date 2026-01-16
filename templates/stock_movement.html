@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Stock Movement</h2>
+
+  <!-- SEARCH BAR -->
+  <form method="get" class="search-bar">
+    <select name="field" required>
+      <option value="movement_id" {% if request.args.get('field') == 'movement_id' %}selected{% endif %}>Movement ID</option>
+      <option value="movement_type" {% if request.args.get('field') == 'movement_type' %}selected{% endif %}>Type</option>
+      <option value="movement_date" {% if request.args.get('field') == 'movement_date' %}selected{% endif %}>Date</option>
+      <option value="emp_id" {% if request.args.get('field') == 'emp_id' %}selected{% endif %}>Employee ID</option>
+      <option value="employee_name" {% if request.args.get('field') == 'employee_name' %}selected{% endif %}>Employee Name</option>
+      <option value="warehouse_item_id" {% if request.args.get('field') == 'warehouse_item_id' %}selected{% endif %}>Item ID</option>
+      <option value="item_name" {% if request.args.get('field') == 'item_name' %}selected{% endif %}>Item Name</option>
+    </select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search..."
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Qty Change</th>
+        <th>Date</th>
+        <th>Employee (ID)</th>
+        <th>Item (ID)</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for m in movements %}
+      <tr>
+        <td>{{ m.movement_id }}</td>
+        <td>{{ m.movement_type }}</td>
+        <td>{{ m.quantity_change }}</td>
+        <td>{{ m.movement_date }}</td>
+        <td>{{ m.emp_name }} ({{ m.emp_id }})</td>
+        <td>{{ m.item_name }} ({{ m.warehouse_item_id }})</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if request.args.get('search') %}
+    <a href="{{ url_for('stock_movement') }}" class="btn-secondary">
+      ← Back to Stock Movement
+    </a>
+  {% endif %}
+
+</div>
+
+{% endblock %}

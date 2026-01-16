@@ -4,6 +4,44 @@
 <div class="card">
   <h2>🧾 Previous Orders</h2>
 
+ <form method="get" class="search-bar">
+  <select name="field" required>
+    <option value="order_id"
+      {% if request.args.get('field') == 'order_id' %}selected{% endif %}>
+      Order ID
+    </option>
+    <option value="order_date"
+      {% if request.args.get('field') == 'order_date' %}selected{% endif %}>
+      Date (YYYY-MM-DD)
+    </option>
+    <option value="order_status"
+      {% if request.args.get('field') == 'order_status' %}selected{% endif %}>
+      Status
+    </option>
+    <option value="order_type"
+      {% if request.args.get('field') == 'order_type' %}selected{% endif %}>
+      Type
+    </option>
+    <option value="table_id"
+      {% if request.args.get('field') == 'table_id' %}selected{% endif %}>
+      Table
+    </option>
+    <option value="total"
+      {% if request.args.get('field') == 'total' %}selected{% endif %}>
+      Total
+    </option>
+  </select>
+
+  <input
+    type="text"
+    name="search"
+    placeholder="Search…"
+    value="{{ request.args.get('search', '') }}"
+    required
+  >
+
+</form>
+
   {% if orders %}
   <table>
     <tr>
@@ -33,6 +71,13 @@
   {% else %}
     <p class="empty">No orders yet.</p>
   {% endif %}
+
+  {% if request.args.get('search') %}
+  <a href="{{ url_for('orders_list') }}" class="btn-secondary">
+    ← Back to Orders
+  </a>
+{% endif %}
+
 </div>
 
 {% endblock %}

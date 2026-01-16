@@ -3,7 +3,7 @@
 
 <div class="card">
   <h2>Start New Order</h2>
-
+  
   {% if error %}
     <p style="color:red;">{{ error }}</p>
   {% endif %}
@@ -16,6 +16,12 @@
         <option value="{{ c.customer_id }}">{{ c.customer_name }}</option>
       {% endfor %}
     </select>
+
+    <a href="{{ url_for('add_customer') }}" class="btn-secondary">
+      + Add New Customer
+    </a>
+
+
 
     <label>Order Type</label>
     <select name="order_type" id="order_type">

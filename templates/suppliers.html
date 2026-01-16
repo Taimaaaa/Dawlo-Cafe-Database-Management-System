@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Suppliers</h2>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <button onclick="filterSuppliers('all')">All</button>
+    <button onclick="filterSuppliers('active')">Active</button>
+    <button onclick="filterSuppliers('inactive')">Inactive</button>
+  </div>
+
+  <!-- SEARCH BAR (NO STATUS SEARCH) -->
+  <form method="get" class="search-bar">
+    <select name="field" required>
+      <option value="supplier_id"
+        {% if request.args.get('field') == 'supplier_id' %}selected{% endif %}>
+        Supplier ID
+      </option>
+      <option value="supplier_name"
+        {% if request.args.get('field') == 'supplier_name' %}selected{% endif %}>
+        Name
+      </option>
+      <option value="phone_number"
+        {% if request.args.get('field') == 'phone_number' %}selected{% endif %}>
+        Phone
+      </option>
+    </select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search…"
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+  </form>
+
+  {% if session.position_title == "manager" %}
+  <div class="toolbar">
+    <a href="{{ url_for('add_supplier') }}" class="btn-secondary">
+      + Add Supplier
+    </a>
+  </div>
+  {% endif %}
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Status</th>
+        {% if session.position_title == "manager" %}
+        <th>Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for s in suppliers %}
+      <tr data-active="{{ 'active' if s.is_active else 'inactive' }}">
+        <td>{{ s.supplier_id }}</td>
+        <td>{{ s.supplier_name }}</td>
+        <td>{{ s.phone_number or "—" }}</td>
+
+        <td>
+          {% if s.is_active %}
+            <span class="badge green">Active</span>
+          {% else %}
+            <span class="badge red">Inactive</span>
+          {% endif %}
+        </td>
+
+        {% if session.position_title == "manager" %}
+        <td>
+          <form method="post"
+                action="{{ url_for('toggle_supplier_active') }}"
+                style="display:inline;">
+            <input type="hidden" name="supplier_id" value="{{ s.supplier_id }}">
+            <button type="submit" class="btn danger">
+              {% if s.is_active %}Disable{% else %}Enable{% endif %}
+            </button>
+          </form>
+
+          <a href="{{ url_for('edit_supplier', supplier_id=s.supplier_id) }}"
+             class="btn-link">
+            Edit
+          </a>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if suppliers|length == 0 %}
+    <p class="empty">No suppliers found.</p>
+  {% endif %}
+</div>
+
+{% if request.args.get('search') %}
+<a href="{{ url_for('suppliers') }}" class="btn-secondary">
+  ← Back to Suppliers
+</a>
+{% endif %}
+
+<script>
+function filterSuppliers(filter) {
+  document.querySelectorAll("tbody tr").forEach(row => {
+    const active = row.dataset.active;
+
+    let show = false;
+
+    if (filter === "all") show = true;
+    if (filter === "active" && active === "active") show = true;
+    if (filter === "inactive" && active === "inactive") show = true;
+
+    row.style.display = show ? "" : "none";
+  });
+}
+</script>
+
+{% endblock %}

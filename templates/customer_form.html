@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>
+    {% if customer %}
+      Edit Customer
+    {% else %}
+      Add New Customer
+    {% endif %}
+  </h2>
+
+  {% if success %}
+    <div class="flash success">
+      {{ success }}
+    </div>
+  {% endif %}
+
+  <form method="post">
+
+    <label>Name</label>
+    <input type="text" name="name"
+           value="{{ customer.customer_name if customer else '' }}"
+           required>
+
+    <label>Phone</label>
+    <input type="text" name="phone_number"
+           value="{{ customer.phone_number if customer else '' }}">
+
+    <label>Email</label>
+    <input type="email" name="email"
+           value="{{ customer.email if customer else '' }}">
+
+    <button type="submit">
+      {% if customer %}
+        Save Changes
+      {% else %}
+        Save Customer
+      {% endif %}
+    </button>
+
+  </form>
+</div>
+
+{% endblock %}

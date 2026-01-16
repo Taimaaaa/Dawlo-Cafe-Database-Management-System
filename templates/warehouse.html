@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>📦 Warehouse</h2>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <button onclick="filterWarehouse('all')">All</button>
+    <button onclick="filterWarehouse('low')">Low Stock</button>
+    <button onclick="filterWarehouse('ok')">OK Stock</button>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <form method="get" class="search-bar">
+    <select name="field" required>
+      <option value="item_id" {% if request.args.get('field') == 'item_id' %}selected{% endif %}>Item ID</option>
+      <option value="item_name" {% if request.args.get('field') == 'item_name' %}selected{% endif %}>Name</option>
+      <option value="unit_of_measure" {% if request.args.get('field') == 'unit_of_measure' %}selected{% endif %}>Unit</option>
+      <option value="stock_quantity" {% if request.args.get('field') == 'stock_quantity' %}selected{% endif %}>Stock Qty</option>
+      <option value="reorder_level" {% if request.args.get('field') == 'reorder_level' %}selected{% endif %}>Reorder Level</option>
+    </select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search..."
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+  </form>
+
+  {% if session.position_title == "manager" %}
+    <div class="toolbar">
+      <a href="{{ url_for('add_warehouse_item') }}" class="btn-secondary">
+        + Add Warehouse Item
+      </a>
+    </div>
+  {% endif %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Stock</th>
+        <th>Reorder Level</th>
+        <th>Unit</th>
+        <th>Status</th>
+        {% if session.position_title == "manager" %}
+        <th>Actions</th>
+        {% endif %}
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for w in items %}
+      <tr data-stock="{{ 'low' if w.stock_quantity <= w.reorder_level else 'ok' }}">
+        <td>{{ w.item_id }}</td>
+        <td>{{ w.item_name }}</td>
+        <td>{{ w.stock_quantity }}</td>
+        <td>{{ w.reorder_level }}</td>
+        <td>{{ w.unit_of_measure }}</td>
+        <td>
+          {% if w.stock_quantity <= w.reorder_level %}
+            Low
+          {% else %}
+            OK
+          {% endif %}
+        </td>
+
+        {% if session.position_title == "manager" %}
+        <td>
+          <a href="{{ url_for('edit_warehouse_item', item_id=w.item_id) }}">Edit</a>
+          
+          
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if request.args.get('search') %}
+    <a href="{{ url_for('warehouse_items') }}" class="btn-secondary">
+      ← Back to Warehouse
+    </a>
+  {% endif %}
+
+</div>
+
+<script>
+function filterWarehouse(filter) {
+  document.querySelectorAll("tbody tr").forEach(row => {
+    const stock = row.dataset.stock;
+
+    let show = false;
+    if (filter === "all") show = true;
+    if (filter === "low" && stock === "low") show = true;
+    if (filter === "ok" && stock === "ok") show = true;
+
+    row.style.display = show ? "" : "none";
+  });
+}
+</script>
+
+{% endblock %}
