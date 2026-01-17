@@ -4,74 +4,89 @@
 <div class="card">
   <h2>Employees</h2>
 
-  <div class="filter-bar">
-    <button onclick="filterEmployees('all')">All</button>
-    <button onclick="filterEmployees('active')">Active</button>
-    <button onclick="filterEmployees('inactive')">Inactive</button>
-    <button onclick="filterEmployees('clocked_in')">Clocked In</button>
-    <button onclick="filterEmployees('clocked_out')">Clocked Out</button>
+  <!-- TOP TOOLBAR -->
+  <div class="customer-toolbar">
+
+    <div class="filter-bar">
+      <button onclick="filterEmployees('all')">All</button>
+      <button onclick="filterEmployees('active')">Active</button>
+      <button onclick="filterEmployees('inactive')">Inactive</button>
+      <button onclick="filterEmployees('clocked_in')">Clocked In</button>
+      <button onclick="filterEmployees('clocked_out')">Clocked Out</button>
+    </div>
+
+    <!-- SORT DROPDOWN -->
+    <form method="get" class="sort-form">
+      <label>Sort</label>
+
+      <select name="sort" onchange="this.form.submit()">
+        <option value="id" {{ 'selected' if sort_by=='id' }}>ID</option>
+        <option value="name" {{ 'selected' if sort_by=='name' }}>Name</option>
+        <option value="phone" {{ 'selected' if sort_by=='phone' }}>Phone</option>
+        <option value="position" {{ 'selected' if sort_by=='position' }}>Position</option>
+        <option value="salary" {{ 'selected' if sort_by=='salary' }}>Salary</option>
+        <option value="date" {{ 'selected' if sort_by=='date' }}>Date Hired</option>
+      </select>
+
+      <input type="hidden" name="order" value="{{ order }}">
+
+      {% if request.args.get('field') %}
+        <input type="hidden" name="field" value="{{ request.args.get('field') }}">
+      {% endif %}
+      {% if request.args.get('search') %}
+        <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+      {% endif %}
+    </form>
   </div>
 
-  <!-- SEARCH (same as Menu) -->
+  <!-- SEARCH -->
   <form method="get" class="search-bar">
     <select name="field" required>
-  <option value="emp_id"
-    {% if request.args.get('field') == 'emp_id' %}selected{% endif %}>
-    ID
-  </option>
+      <option value="emp_id">ID</option>
+      <option value="emp_name">Name</option>
+      <option value="phone_number">Phone</option>
+      <option value="position_title">Position</option>
+      <option value="salary">Salary</option>
+      <option value="date_hired">Date Hired</option>
+    </select>
 
-  <option value="emp_name"
-    {% if request.args.get('field') == 'emp_name' %}selected{% endif %}>
-    Name
-  </option>
+    <input type="text" name="search" placeholder="Search…" required>
 
-  <option value="phone_number"
-    {% if request.args.get('field') == 'phone_number' %}selected{% endif %}>
-    Phone
-  </option>
-
-  <option value="position_title"
-    {% if request.args.get('field') == 'position_title' %}selected{% endif %}>
-    Position
-  </option>
-
-  <option value="salary"
-    {% if request.args.get('field') == 'salary' %}selected{% endif %}>
-    Salary
-  </option>
-
-  <option value="date_hired"
-    {% if request.args.get('field') == 'date_hired' %}selected{% endif %}>
-    Date Hired (YYYY-MM-DD)
-  </option>
-</select>
-
-    <input
-      type="text"
-      name="search"
-      placeholder="Search…"
-      value="{{ request.args.get('search', '') }}"
-      required
-    >
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="order" value="{{ order }}">
   </form>
 
-  <!-- ACTION BUTTON (same as Menu) -->
-  <div class="toolbar">
-    <a href="{{ url_for('add_employee') }}" class="btn-secondary">
-      + Add New Employee
-    </a>
-  </div>
+  <a href="{{ url_for('add_employee') }}" class="btn-secondary">
+    + Add New Employee
+  </a>
 
+  <!-- TABLE -->
   <table class="table">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Phone</th>
-        <th>Position</th>
+
+        {% macro sort_th(label, key) %}
+        <th>
+          <a href="{{ url_for('employees_dashboard',
+                sort=key,
+                order='desc' if sort_by==key and order=='asc' else 'asc',
+                field=request.args.get('field'),
+                search=request.args.get('search')) }}">
+            {{ label }}
+            {% if sort_by == key %}
+              {{ '▲' if order=='asc' else '▼' }}
+            {% endif %}
+          </a>
+        </th>
+        {% endmacro %}
+
+        {{ sort_th('ID', 'id') }}
+        {{ sort_th('Name', 'name') }}
+        {{ sort_th('Phone', 'phone') }}
+        {{ sort_th('Position', 'position') }}
         <th>Status</th>
-        <th>Salary</th>
-        <th>Date Hired</th>
+        {{ sort_th('Salary', 'salary') }}
+        {{ sort_th('Date Hired', 'date') }}
         <th>Shift</th>
         <th>Actions</th>
       </tr>
@@ -80,61 +95,49 @@
     <tbody>
       {% for e in employees %}
       <tr
-      data-active="{{ 'active' if e.is_active else 'inactive' }}"
-      data-shift="{{ 'clocked_in' if e.clocked_in else 'clocked_out' }}">
+        data-active="{{ 'active' if e.is_active else 'inactive' }}"
+        data-shift="{{ 'clocked_in' if e.clocked_in else 'clocked_out' }}">
 
-  <td>{{ e.emp_id }}</td>
-  <td>{{ e.emp_name }}</td>
-  <td>{{ e.phone_number or "—" }}</td>
-  <td>{{ e.position_title }}</td>
+        <td>{{ e.emp_id }}</td>
+        <td>{{ e.emp_name }}</td>
+        <td>{{ e.phone_number or '—' }}</td>
+        <td>{{ e.position_title }}</td>
 
-  <td>
-    {% if e.is_active %}
-      <span class="badge green">Active</span>
-    {% else %}
-      <span class="badge red">Inactive</span>
-    {% endif %}
-  </td>
+        <td>
+          {% if e.is_active %}
+            <span class="badge green">Active</span>
+          {% else %}
+            <span class="badge red">Inactive</span>
+          {% endif %}
+        </td>
 
-  <td>{{ e.salary or "—" }}</td>
+        <td>{{ e.salary or '—' }}</td>
 
-<td>
-  {{ e.date_hired.strftime('%Y-%m-%d') if e.date_hired else "—" }}
-</td>
+        <td>
+          {{ e.date_hired.strftime('%Y-%m-%d') if e.date_hired else '—' }}
+        </td>
 
-<td>
-  {% if e.clocked_in %}
-    <span class="badge blue">Clocked In</span>
-  {% else %}
-    <span class="badge gray">Clocked Out</span>
-  {% endif %}
-</td>
+        <td>
+          {% if e.clocked_in %}
+            <span class="badge blue">Clocked In</span>
+          {% else %}
+            <span class="badge gray">Clocked Out</span>
+          {% endif %}
+        </td>
 
+        <td>
+          <form method="post" action="{{ url_for('toggle_employee_active') }}" style="display:inline;">
+            <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+            <button type="submit" class="btn danger">Deactivate</button>
+          </form>
 
-  <td>
-    <form method="post"
-          action="{{ url_for('toggle_employee_active') }}"
-          style="display:inline;">
-      <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
-      <button type="submit" class="btn danger">Deactivate</button>
-    </form>
-
-    <a href="{{ url_for('shift_history', emp_id=e.emp_id) }}"
-       class="btn-link">
-      View Shifts
-    </a>
-
-    <a href="{{ url_for('edit_employee', emp_id=e.emp_id) }}"
-       class="btn-link">
-      Edit
-    </a>
-  </td>
-</tr>
-
+          <a href="{{ url_for('shift_history', emp_id=e.emp_id) }}" class="btn-link">View Shifts</a>
+          <a href="{{ url_for('edit_employee', emp_id=e.emp_id) }}" class="btn-link">Edit</a>
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
-
 
   {% if employees|length == 0 %}
     <p class="empty">No employees found.</p>

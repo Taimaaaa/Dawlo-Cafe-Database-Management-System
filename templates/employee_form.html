@@ -11,8 +11,16 @@
          value="{{ employee.emp_name if employee else '' }}" required>
 
   <label>Phone</label>
-  <input type="text" name="phone_number"
-         value="{{ employee.phone_number if employee else '' }}" required>
+  <input type="tel"
+        name="phone_number"
+        pattern="[0-9]+"
+        minlength="7"
+        maxlength="15"
+        placeholder="Enter phone number"
+        title="Phone number must contain digits only"
+        value="{{ employee.phone_number if employee else '' }}"
+        required>
+
 
   <label>Position</label>
   <select name="position_title" required>
@@ -32,6 +40,12 @@
   <input type="date" name="date_hired"
          value="{{ employee.date_hired.strftime('%Y-%m-%d') if employee and employee.date_hired else '' }}"
          required>
+  <label>Password</label>
+  <input type="password"
+        name="password"
+        placeholder="Set employee password"
+        required>
+
 
   <button type="submit">
     {{ 'Update Employee' if employee else 'Add Employee' }}
@@ -40,5 +54,13 @@
 </form>
 
 </div>
+
+{% if error %}
+<div class="popup-error">
+  {{ error }}
+  <button onclick="this.parentElement.style.display='none'">✕</button>
+</div>
+{% endif %}
+
 
 {% endblock %}

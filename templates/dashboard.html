@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid mt-4">
+
+  <h2 class="mb-4">Manager Dashboard</h2>
+
+  <!-- ROW 1 -->
+  <div class="row g-4">
+    <div class="col-lg-8">
+      <div class="card p-3 h-100">
+        <h5>Monthly Sales</h5>
+        <img src="{{ url_for('static', filename='charts/monthly_sales.png') }}"
+             class="img-fluid">
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card p-3 h-100">
+        <h5>Orders by Type</h5>
+        <img src="{{ url_for('static', filename='charts/order_types.png') }}"
+             class="img-fluid">
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="row g-4 mt-1">
+    <div class="col-lg-4">
+      <div class="card p-3">
+        <h5>Sales Distribution</h5>
+        <img src="{{ url_for('static', filename='charts/sales_distribution.png') }}"
+             class="img-fluid">
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card p-3">
+        <h5>Top Ordered Items</h5>
+        <img src="{{ url_for('static', filename='charts/top_items.png') }}"
+             class="img-fluid">
+      </div>
+    </div>
+
+    <div class="col-lg-4">
+      <div class="card p-3">
+        <h5>Most Frequent Customers</h5>
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Orders</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in top_customers %}
+            <tr>
+              <td>{{ c.customer_name }}</td>
+              <td>{{ c.orders }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

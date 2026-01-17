@@ -1,12 +1,13 @@
-drop database dawlo;
-create database dawlo;
-use dawlo;
+DROP DATABASE dawlo_phase3;
+CREATE DATABASE dawlo_phase3;
+USE dawlo_phase3;
+
 
 create table Customer ( -- 3NF
     customer_id int primary key auto_increment,
     customer_name varchar(64) not null,
-    phone_number varchar(32),
-    email varchar(64)
+    phone_number varchar(32) not null unique,
+	email varchar(64) not null unique
 );
 
 create table Menu_Item ( -- 3NF
@@ -83,9 +84,10 @@ create table Employee ( -- 3NF
 	emp_id int primary key auto_increment,
     emp_name varchar(64) not null,
     salary real not null,
-    phone_number varchar(32),
+    phone_number varchar(32) not null unique,
     position_title varchar(32) not null,
     date_hired date not null ,
+    password_hash VARCHAR(255) not null,
     is_active int not null default 1  -- 1 emp currently working in the cafe, 0 emp resigned/terminated
 );
 
@@ -120,7 +122,7 @@ create table Purchase (
 create table Supplier ( -- 3NF
 	supplier_id int primary key auto_increment,
     supplier_name varchar (64) not null,
-    phone_number varchar (32),
+    phone_number varchar (32) not null unique,
     is_active int not null default 1  -- whether this supplier is still available
 );
 
@@ -179,10 +181,10 @@ insert into Customer (customer_name, phone_number, email) values
 ('Sara Yasin', '0596456789', 'sara@gmail.com'),
 ('Yousef Hamdan', '0595567890', 'yousef@gmail.com');
 
-insert into Employee (emp_name, salary, phone_number, position_title, date_hired) values
-('Ali Hassan', 2500, '0591111111', 'cashier', '2026-01-03'),
-('Maya Taha', 2700, '0592222222', 'waiter', '2026-01-03'),
-('Khaled Saad', 3000, '0593333333', 'manager', '2024-04-11');
+insert into Employee (emp_name, salary, phone_number, position_title, date_hired, password_hash) values
+('Ali Hassan', 2500, '0591111111', 'cashier', '2026-01-03', 'e1'),
+('Maya Taha', 2700, '0592222222', 'waiter', '2026-01-03', 'e2'),
+('Khaled Saad', 3000, '0593333333', 'manager', '2024-04-11', 'm1');
 
 insert into Menu_Item (item_name, category, price, date_added) values
 ('Espresso', 'drink', 8, '2024-01-01'),
@@ -242,33 +244,37 @@ INSERT INTO Supplier (supplier_name, phone_number) VALUES
 ('Al Baraka Food Distribution', '0598554433'),
 ('Pure Water Company', '0599001122');
 
-INSERT INTO Supplier_Item (supplier_id, warehouse_item_id, unit_price, avg_delivery_days) VALUES
+INSERT INTO Supplier_Item
+(supplier_id, warehouse_item_id, unit_price, avg_delivery_days)
+VALUES
 -- Supplier 1
-(1, 1, 12.50, 2),
-(1, 2, 8.75, 3),
-(1, 3, 4.20, 1),
+(1, 1, 12.50, 2),   -- Coffee Beans
+(1, 2, 8.75, 3),    -- Milk
+(1, 3, 4.20, 1),    -- Sugar
 
 -- Supplier 2
-(2, 1, 13.00, 4),
-(2, 4, 6.90, 2),
-(2, 5, 10.50, 3),
+(2, 1, 13.00, 4),   -- Coffee Beans
+(2, 4, 6.90, 2),    -- Flour
+(2, 5, 10.50, 3),   -- Butter
 
 -- Supplier 3
-(3, 2, 9.10, 2),
-(3, 3, 4.00, 1),
-(3, 6, 7.80, 5),
+(3, 2, 9.10, 2),    -- Milk
+(3, 3, 4.00, 1),    -- Sugar
+(3, 6, 7.80, 5),    -- Chocolate
 
 -- Supplier 4
-(4, 1, 11.90, 3),
-(4, 8, 10.20, 4),
+(4, 1, 11.90, 3),   -- Coffee Beans
+(4, 7, 10.20, 4),   -- Cheese
 
 -- Supplier 5
-(5, 4, 6.50, 2),
-(5, 7, 7.60, 3);
+(5, 4, 6.50, 2),    -- Flour
+(5, 7, 7.60, 3);    -- Cheese
 
 SELECT * FROM Order_Item;
 
+
 select * from Orders;
+select * from Customer;
 
 select * from Employee;
 

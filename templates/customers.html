@@ -4,7 +4,39 @@
 <div class="card">
   <h2>Customers</h2>
 
-  <!-- SEARCH BAR (same as Orders) -->
+  <!-- TOP TOOLBAR -->
+  <div class="customer-toolbar">
+
+    <a href="{{ url_for('add_customer') }}" class="btn-secondary">
+      + Add New Customer
+    </a>
+
+    <!-- SORT DROPDOWN (RIGHT SIDE) -->
+    <form method="get" class="sort-form">
+      <label>Sort</label>
+
+      <select name="sort" onchange="this.form.submit()">
+        <option value="id" {{ 'selected' if sort_by == 'id' }}>ID</option>
+        <option value="name" {{ 'selected' if sort_by == 'name' }}>Name</option>
+        <option value="phone" {{ 'selected' if sort_by == 'phone' }}>Phone</option>
+        <option value="email" {{ 'selected' if sort_by == 'email' }}>Email</option>
+      </select>
+
+      <!-- keep order -->
+      <input type="hidden" name="order" value="{{ order }}">
+
+      <!-- preserve search -->
+      {% if request.args.get('field') %}
+        <input type="hidden" name="field" value="{{ request.args.get('field') }}">
+      {% endif %}
+      {% if request.args.get('search') %}
+        <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+      {% endif %}
+    </form>
+
+  </div>
+
+  <!-- SEARCH BAR -->
   <form method="get" class="search-bar">
 
     <select name="field" required>
@@ -37,36 +69,88 @@
       required
     >
 
+    <!-- preserve sorting -->
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="order" value="{{ order }}">
   </form>
 
-  <!-- ACTION BUTTON (same pattern as Orders pages) -->
-  <a href="{{ url_for('add_customer') }}" class="btn-secondary">
-    + Add New Customer
-  </a>
-
+  <!-- TABLE -->
   <table>
-    <tr>
-      <th>ID</th>
-      <th>Name</th>
-      <th>Phone</th>
-      <th>Email</th>
-      <th></th>
-    </tr>
+    <thead>
+      <tr>
 
-    {% for c in customers %}
-    <tr>
-      <td>{{ c.customer_id }}</td>
-      <td>{{ c.customer_name }}</td>
-      <td>{{ c.phone_number }}</td>
-      <td>{{ c.email }}</td>
-      <td>
-        <a href="{{ url_for('edit_customer', customer_id=c.customer_id) }}"
-           class="btn-secondary">
-          Edit
-        </a>
-      </td>
-    </tr>
-    {% endfor %}
+        <th>
+          <a href="{{ url_for('customers_list',
+                sort='id',
+                order='desc' if sort_by=='id' and order=='asc' else 'asc',
+                field=request.args.get('field'),
+                search=request.args.get('search')) }}">
+            ID
+            {% if sort_by == 'id' %}
+              {{ '▲' if order == 'asc' else '▼' }}
+            {% endif %}
+          </a>
+        </th>
+
+        <th>
+          <a href="{{ url_for('customers_list',
+                sort='name',
+                order='desc' if sort_by=='name' and order=='asc' else 'asc',
+                field=request.args.get('field'),
+                search=request.args.get('search')) }}">
+            Name
+            {% if sort_by == 'name' %}
+              {{ '▲' if order == 'asc' else '▼' }}
+            {% endif %}
+          </a>
+        </th>
+
+        <th>
+          <a href="{{ url_for('customers_list',
+                sort='phone',
+                order='desc' if sort_by=='phone' and order=='asc' else 'asc',
+                field=request.args.get('field'),
+                search=request.args.get('search')) }}">
+            Phone
+            {% if sort_by == 'phone' %}
+              {{ '▲' if order == 'asc' else '▼' }}
+            {% endif %}
+          </a>
+        </th>
+
+        <th>
+          <a href="{{ url_for('customers_list',
+                sort='email',
+                order='desc' if sort_by=='email' and order=='asc' else 'asc',
+                field=request.args.get('field'),
+                search=request.args.get('search')) }}">
+            Email
+            {% if sort_by == 'email' %}
+              {{ '▲' if order == 'asc' else '▼' }}
+            {% endif %}
+          </a>
+        </th>
+
+        <th></th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for c in customers %}
+      <tr>
+        <td>{{ c.customer_id }}</td>
+        <td>{{ c.customer_name }}</td>
+        <td>{{ c.phone_number }}</td>
+        <td>{{ c.email }}</td>
+        <td>
+          <a href="{{ url_for('edit_customer', customer_id=c.customer_id) }}"
+             class="btn-secondary">
+            Edit
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
   </table>
 
   {% if customers|length == 0 %}
@@ -74,9 +158,9 @@
   {% endif %}
 
   {% if request.args.get('search') %}
-  <a href="{{ url_for('customers_list') }}" class="btn-secondary">
-    ← Back to Customers
-  </a>
+    <a href="{{ url_for('customers_list') }}" class="btn-secondary">
+      ← Back to Customers
+    </a>
   {% endif %}
 
 </div>

@@ -569,6 +569,52 @@ input, select {
   color: white;
 }
 
+.popup-error {
+  position: fixed;
+  top: 60px;
+  right:10px;
+  background: #fdecea;
+  color: #a71d2a;
+  padding: 14px 18px;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  z-index: 9999;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.popup-error button {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #a71d2a;
+}
+.customer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sort-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+table th a {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+table th a:hover {
+  text-decoration: underline;
+}
+
 /* states */
 .table-marker.free { background: #4a7c59; }
 .table-marker.occupied_no_order_yet { background: #8a6d3b; }

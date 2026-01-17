@@ -4,54 +4,82 @@
 <div class="card">
   <h2>Suppliers</h2>
 
-  <!-- FILTER BAR -->
-  <div class="filter-bar">
-    <button onclick="filterSuppliers('all')">All</button>
-    <button onclick="filterSuppliers('active')">Active</button>
-    <button onclick="filterSuppliers('inactive')">Inactive</button>
+  <!-- TOP BAR -->
+  <div class="customer-toolbar">
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <button onclick="filterSuppliers('all')">All</button>
+      <button onclick="filterSuppliers('active')">Active</button>
+      <button onclick="filterSuppliers('inactive')">Inactive</button>
+    </div>
+
+    <!-- SORT -->
+    <form method="get" class="sort-form">
+      <label>Sort by</label>
+
+      <select name="sort" onchange="this.form.submit()">
+        <option value="id" {{ 'selected' if sort_by=='id' }}>ID</option>
+        <option value="name" {{ 'selected' if sort_by=='name' }}>Name</option>
+        <option value="phone" {{ 'selected' if sort_by=='phone' }}>Phone</option>
+      </select>
+
+      <input type="hidden" name="order" value="{{ order }}">
+
+      {% if request.args.get('field') %}
+        <input type="hidden" name="field" value="{{ request.args.get('field') }}">
+      {% endif %}
+      {% if request.args.get('search') %}
+        <input type="hidden" name="search" value="{{ request.args.get('search') }}">
+      {% endif %}
+    </form>
   </div>
 
-  <!-- SEARCH BAR (NO STATUS SEARCH) -->
+  <!-- SEARCH -->
   <form method="get" class="search-bar">
     <select name="field" required>
-      <option value="supplier_id"
-        {% if request.args.get('field') == 'supplier_id' %}selected{% endif %}>
-        Supplier ID
-      </option>
-      <option value="supplier_name"
-        {% if request.args.get('field') == 'supplier_name' %}selected{% endif %}>
-        Name
-      </option>
-      <option value="phone_number"
-        {% if request.args.get('field') == 'phone_number' %}selected{% endif %}>
-        Phone
-      </option>
+      <option value="supplier_id">Supplier ID</option>
+      <option value="supplier_name">Name</option>
+      <option value="phone_number">Phone</option>
     </select>
 
-    <input
-      type="text"
-      name="search"
-      placeholder="Search…"
-      value="{{ request.args.get('search', '') }}"
-      required
-    >
+    <input type="text" name="search" placeholder="Search…" required>
+
+    <input type="hidden" name="sort" value="{{ sort_by }}">
+    <input type="hidden" name="order" value="{{ order }}">
   </form>
 
   {% if session.position_title == "manager" %}
-  <div class="toolbar">
-    <a href="{{ url_for('add_supplier') }}" class="btn-secondary">
-      + Add Supplier
-    </a>
-  </div>
+  <a href="{{ url_for('add_supplier') }}" class="btn-secondary">
+    + Add Supplier
+  </a>
   {% endif %}
 
+  <!-- TABLE -->
   <table class="table">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Phone</th>
+
+        {% macro sort_th(label, key) %}
+        <th>
+          <a href="{{ url_for('suppliers',
+                sort=key,
+                order='desc' if sort_by==key and order=='asc' else 'asc',
+                field=request.args.get('field'),
+                search=request.args.get('search')) }}">
+            {{ label }}
+            {% if sort_by == key %}
+              {{ '▲' if order=='asc' else '▼' }}
+            {% endif %}
+          </a>
+        </th>
+        {% endmacro %}
+
+        {{ sort_th('ID', 'id') }}
+        {{ sort_th('Name', 'name') }}
+        {{ sort_th('Phone', 'phone') }}
         <th>Status</th>
+
         {% if session.position_title == "manager" %}
         <th>Actions</th>
         {% endif %}
@@ -112,7 +140,6 @@ function filterSuppliers(filter) {
     const active = row.dataset.active;
 
     let show = false;
-
     if (filter === "all") show = true;
     if (filter === "active" && active === "active") show = true;
     if (filter === "inactive" && active === "inactive") show = true;

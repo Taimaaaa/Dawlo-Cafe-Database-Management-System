@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 
+{% if error %}
+<div class="popup-error">
+  {{ error }}
+  <button onclick="this.parentElement.style.display='none'">✕</button>
+</div>
+{% endif %}
+
 <div class="card">
   <h2>{{ 'Edit Supplier' if supplier else 'Add New Supplier' }}</h2>
 
@@ -13,9 +20,16 @@
            required>
 
     <label>Phone</label>
-    <input type="text"
-           name="phone_number"
-           value="{{ supplier.phone_number if supplier else '' }}">
+    <input type="tel"
+          name="phone_number"
+          pattern="[0-9]+"
+          minlength="7"
+          maxlength="15"
+          placeholder="Enter phone number"
+          title="Phone number must contain digits only"
+          value="{{ Supplier.phone_number if Supplier else '' }}"
+          required>
+
 
     <button type="submit">
       {{ 'Update Supplier' if supplier else 'Add Supplier' }}

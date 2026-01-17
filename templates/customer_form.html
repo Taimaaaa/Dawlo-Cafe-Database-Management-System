@@ -16,6 +16,14 @@
     </div>
   {% endif %}
 
+  {% if error %}
+  <div class="popup-error">
+    {{ error }}
+    <button onclick="this.parentElement.style.display='none'">✕</button>
+  </div>
+  {% endif %}
+
+
   <form method="post">
 
     <label>Name</label>
@@ -24,8 +32,15 @@
            required>
 
     <label>Phone</label>
-    <input type="text" name="phone_number"
-           value="{{ customer.phone_number if customer else '' }}">
+    <input type="tel"
+          name="phone_number"
+          pattern="[0-9]+"
+          minlength="7"
+          maxlength="15"
+          placeholder="Enter phone number"
+          title="Phone number must contain digits only"
+          value="{{ customer.phone_number if customer else '' }}"
+          required>
 
     <label>Email</label>
     <input type="email" name="email"

@@ -3,6 +3,11 @@
 from flask import Flask, render_template, request, redirect, url_for, session, abort
 from db import get_db_connection
 from datetime import datetime
+import mysql.connector
+import io
+from flask import Response
+import matplotlib.pyplot as plt
+
 from functools import wraps
 
 
@@ -115,17 +120,19 @@ TABLE_POSITIONS = {
 # ---------------------------
 # routes
 # ---------------------------
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    error = None
+
     if request.method == "POST":
         emp_id = request.form["emp_id"]
+        password = request.form["password"]
 
         conn = get_db_connection()
         cur = conn.cursor(dictionary=True)
 
         cur.execute("""
-            SELECT emp_id, emp_name, position_title
+            SELECT emp_id, emp_name, position_title, is_active, password_hash
             FROM Employee
             WHERE emp_id = %s
         """, (emp_id,))
@@ -134,15 +141,30 @@ def login():
         cur.close()
         conn.close()
 
-        if emp:
+        if not emp:
+            error = "Employee ID not found."
+
+        elif emp["is_active"] == 0:
+            error = "This employee is no longer active."
+
+        elif emp["password_hash"] != password:
+            error = "Incorrect password."
+
+        else:
+            # ✅ SUCCESSFUL LOGIN
+            session.clear()
             session["emp_id"] = emp["emp_id"]
             session["emp_name"] = emp["emp_name"]
             session["position_title"] = emp["position_title"]
-            return redirect(url_for("home"))
 
-        return render_template("login.html", error="Invalid credentials")
+            if emp["position_title"] == "manager":
+                return redirect(url_for("dashboard"))
+            else:
+                return redirect(url_for("tables_dashboard"))
 
-    return render_template("login.html")
+    # ✅ ALWAYS return something
+    return render_template("login.html", error=error)
+
 
 @app.route("/logout")
 def logout():
@@ -151,7 +173,218 @@ def logout():
 
 @app.route("/")
 def home():
-    return redirect(url_for("tables_dashboard"))
+    return redirect(url_for("login"))
+
+@app.route("/dashboard")
+@login_required
+@admin_required
+def dashboard():
+    import matplotlib.pyplot as plt
+    import os
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    os.makedirs("static/charts", exist_ok=True)
+
+    # =========================
+    # 1. Monthly Sales (Line)
+    # =========================
+    cur.execute("""
+        SELECT
+            DATE_FORMAT(order_date, '%Y-%m') AS month,
+            SUM(total) AS revenue
+        FROM Orders
+        WHERE order_status = 'paid'
+        GROUP BY DATE_FORMAT(order_date, '%Y-%m')
+        ORDER BY month
+    """)
+    monthly = cur.fetchall()
+
+    months = [r["month"] for r in monthly]
+    revenue = [float(r["revenue"]) for r in monthly]
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(months, revenue, marker="o")
+    plt.title("Monthly Sales")
+    plt.xlabel("Month")
+    plt.ylabel("Revenue")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("static/charts/monthly_sales.png")
+    plt.close()
+
+    # =========================
+    # 2. Top Ordered Items (Bar)
+    # =========================
+    cur.execute("""
+        SELECT
+            mi.item_name,
+            SUM(oi.quantity) AS qty
+        FROM Order_Item oi
+        JOIN Menu_Item mi ON mi.item_id = oi.menu_item_id
+        JOIN Orders o ON o.order_id = oi.order_id
+        WHERE o.order_status = 'paid'
+          AND oi.item_status != 'cancelled'
+        GROUP BY mi.item_name
+        ORDER BY qty DESC
+        LIMIT 5
+    """)
+    items = cur.fetchall()
+
+    names = [i["item_name"] for i in items]
+    qtys = [int(i["qty"]) for i in items]
+
+    plt.figure(figsize=(6, 4))
+    plt.bar(names, qtys)
+    plt.title("Top Ordered Items")
+    plt.ylabel("Quantity Sold")
+    plt.tight_layout()
+    plt.savefig("static/charts/top_items.png")
+    plt.close()
+
+    # =========================
+    # 3. Sales Distribution (Pie)
+    # =========================
+    cur.execute("""
+        SELECT
+            mi.item_name,
+            SUM(oi.subtotal) AS sales
+        FROM Order_Item oi
+        JOIN Menu_Item mi ON mi.item_id = oi.menu_item_id
+        JOIN Orders o ON o.order_id = oi.order_id
+        WHERE o.order_status = 'paid'
+          AND oi.item_status != 'cancelled'
+        GROUP BY mi.item_name
+        ORDER BY sales DESC
+        LIMIT 6
+    """)
+    dist = cur.fetchall()
+
+    labels = [d["item_name"] for d in dist]
+    sales = [float(d["sales"]) for d in dist]
+
+    plt.figure(figsize=(5, 5))
+    plt.pie(sales, labels=labels, autopct="%1.1f%%", startangle=140)
+    plt.title("Sales Distribution")
+    plt.tight_layout()
+    plt.savefig("static/charts/sales_distribution.png")
+    plt.close()
+
+    # =========================
+    # 4. Orders by Type (Bar)
+    # =========================
+    cur.execute("""
+        SELECT
+            order_type,
+            COUNT(*) AS count
+        FROM Orders
+        WHERE order_status = 'paid'
+        GROUP BY order_type
+    """)
+    types = cur.fetchall()
+
+    labels = [t["order_type"].replace("_", " ").title() for t in types]
+    counts = [t["count"] for t in types]
+
+    plt.figure(figsize=(5, 4))
+    plt.bar(labels, counts)
+    plt.title("Orders by Type")
+    plt.ylabel("Orders")
+    plt.tight_layout()
+    plt.savefig("static/charts/order_types.png")
+    plt.close()
+
+    # =========================
+    # Top Customers (table only)
+    # =========================
+    cur.execute("""
+        SELECT
+            c.customer_name,
+            COUNT(o.order_id) AS orders
+        FROM Orders o
+        JOIN Customer c ON c.customer_id = o.customer_id
+        WHERE o.order_status = 'paid'
+        GROUP BY c.customer_id
+        ORDER BY orders DESC
+        LIMIT 5
+    """)
+    top_customers = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "dashboard.html",
+        top_customers=top_customers
+    )
+
+@app.route("/charts/monthly-sales")
+@login_required
+@admin_required
+def monthly_sales_chart():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT DATE_FORMAT(order_date, '%Y-%m') AS month,
+               SUM(total) AS revenue
+        FROM Orders
+        WHERE order_status = 'paid'
+        GROUP BY month
+        ORDER BY month
+    """)
+    data = cur.fetchall()
+    conn.close()
+
+    months = [d["month"] for d in data]
+    revenue = [float(d["revenue"]) for d in data]
+
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(months, revenue, marker="o")
+    ax.set_title("Monthly Sales")
+    ax.set_ylabel("Revenue")
+    ax.set_xlabel("Month")
+    ax.grid(True)
+
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+
+    return Response(buf.getvalue(), mimetype="image/png")
+
+@app.route("/charts/orders-by-type")
+@login_required
+@admin_required
+def orders_type_chart():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    cur.execute("""
+        SELECT order_type, COUNT(*) AS cnt
+        FROM Orders
+        WHERE order_status = 'paid'
+        GROUP BY order_type
+    """)
+    data = cur.fetchall()
+    conn.close()
+
+    labels = [d["order_type"] for d in data]
+    counts = [d["cnt"] for d in data]
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.bar(labels, counts)
+    ax.set_title("Orders by Type")
+
+    buf = io.BytesIO()
+    plt.tight_layout()
+    plt.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+
+    return Response(buf.getvalue(), mimetype="image/png")
 
 
 from datetime import datetime
@@ -1020,47 +1253,69 @@ def employees_dashboard():
     field = request.args.get("field")
     search = request.args.get("search")
 
-    text_fields = {"emp_name": "emp_name",
-                    "phone_number": "phone_number",
-                    "position_title": "position_title",
-                    "date_hired": "date_hired" }
+    # NEW
+    sort = request.args.get("sort", "emp_id")
+    order = request.args.get("order", "asc")
+    order = "desc" if order == "desc" else "asc"
 
-    numeric_fields = { "emp_id": "emp_id",
-                        "salary": "salary"}
+    sort_map = {
+        "id": "emp_id",
+        "name": "emp_name",
+        "phone": "phone_number",
+        "position": "position_title",
+        "salary": "salary",
+        "date": "date_hired"
+    }
+    sort_column = sort_map.get(sort, "emp_id")
+
+    text_fields = {
+        "emp_name": "emp_name",
+        "phone_number": "phone_number",
+        "position_title": "position_title",
+        "date_hired": "date_hired"
+    }
+
+    numeric_fields = {
+        "emp_id": "emp_id",
+        "salary": "salary"
+    }
 
     if search and field in text_fields:
         column = text_fields[field]
-
         cur.execute(f"""
-            select *
-            from Employee
-            where {column} like %s
-            order by emp_id
+            SELECT *
+            FROM Employee
+            WHERE {column} LIKE %s
+            ORDER BY {sort_column} {order}
         """, (f"%{search}%",))
 
     elif search and field in numeric_fields:
         column = numeric_fields[field]
-
         cur.execute(f"""
-            select *
-            from Employee
-            where {column} = %s
-            order by emp_id
+            SELECT *
+            FROM Employee
+            WHERE {column} = %s
+            ORDER BY {sort_column} {order}
         """, (search,))
 
     else:
-        cur.execute("""
-            select *
-            from Employee
-            order by emp_id
+        cur.execute(f"""
+            SELECT *
+            FROM Employee
+            ORDER BY {sort_column} {order}
         """)
 
     employees = cur.fetchall()
     cur.close()
     conn.close()
 
-    return render_template("employees.html", employees=employees, wide=True)
-
+    return render_template(
+        "employees.html",
+        employees=employees,
+        sort_by=sort,
+        order=order,
+        wide=True
+    )
 
 @app.route("/employees/toggle_active", methods=["POST"])
 @login_required
@@ -1265,12 +1520,9 @@ def assign_employee():
 @admin_required
 def add_employee():
 
-    # only manager can add employees
-    if session.get("position_title") != "manager":
-        abort(403)
-
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
+    error = None
 
     if request.method == "POST":
         name = request.form["emp_name"]
@@ -1278,22 +1530,26 @@ def add_employee():
         phone = request.form["phone_number"]
         position = request.form["position_title"]
         date_hired = request.form["date_hired"]
+        password = request.form["password"]   # NEW
 
-        cur.execute("""
-            insert into Employee (emp_name, salary, phone_number, position_title, is_active, date_hired)
-            values (%s, %s, %s, %s, 1, %s)
-        """, (name, salary, phone, position, date_hired))
+        try:
+            cur.execute("""
+                INSERT INTO Employee
+                (emp_name, salary, phone_number, position_title, date_hired, password_hash, is_active)
+                VALUES (%s, %s, %s, %s, %s, %s, 1)
+            """, (name, salary, phone, position, date_hired, password))
 
-        conn.commit()
-        cur.close()
-        conn.close()
+            conn.commit()
+            return redirect(url_for("employees_dashboard"))
 
-        return redirect(url_for("employees_dashboard"))
+        except mysql.connector.IntegrityError:
+            conn.rollback()
+            error = "An employee with this phone number already exists."
 
     cur.close()
     conn.close()
+    return render_template("employee_form.html", error=error)
 
-    return render_template("employee_form.html")
 
 # updating employees info
 @app.route("/employees/<int:emp_id>/edit", methods=["GET", "POST"])
@@ -1353,25 +1609,35 @@ def add_customer():
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
     success = None
+    error = None
 
     if request.method == "POST":
         name = request.form["name"]
         phone = request.form["phone_number"]
         email = request.form["email"]
 
-        cur.execute("""
-            INSERT INTO Customer (customer_name, phone_number, email)
-            VALUES (%s, %s, %s)
-        """, (name, phone, email))
+        try:
+            cur.execute("""
+                INSERT INTO Customer (customer_name, phone_number, email)
+                VALUES (%s, %s, %s)
+            """, (name, phone, email))
 
-        conn.commit()
-        success = "Customer added successfully"
+            conn.commit()
+            success = "Customer added successfully"
+
+        except mysql.connector.IntegrityError:
+            conn.rollback()
+            error = "A customer with this phone number or email already exists."
 
     cur.close()
     conn.close()
 
-    return render_template("customer_form.html", customer=None, success=success)
-
+    return render_template(
+        "customer_form.html",
+        customer=None,
+        success=success,
+        error=error
+    )
 @app.route("/customers")
 @login_required
 def customers_list():
@@ -1381,44 +1647,67 @@ def customers_list():
     field = request.args.get("field")
     search = request.args.get("search")
 
-    text_fields = {"customer_name": "customer_name",
-                    "phone_number": "phone_number",
-                    "email": "email"}
+    # sorting params
+    sort = request.args.get("sort", "id")
+    order = request.args.get("order", "asc")
 
-    numeric_fields = {"customer_id": "customer_id"}
+    # allowed sorting columns (prevents SQL injection)
+    sort_map = {
+        "id": "customer_id",
+        "name": "customer_name",
+        "phone": "phone_number",
+        "email": "email"
+    }
+
+    sort_column = sort_map.get(sort, "customer_id")
+    order_sql = "DESC" if order == "desc" else "ASC"
+
+    text_fields = {
+        "customer_name": "customer_name",
+        "phone_number": "phone_number",
+        "email": "email"
+    }
+
+    numeric_fields = {
+        "customer_id": "customer_id"
+    }
 
     if search and field in text_fields:
         column = text_fields[field]
-
         cur.execute(f"""
-            select *
-            from Customer
-            where {column} like %s
-            order by customer_id
+            SELECT *
+            FROM Customer
+            WHERE {column} LIKE %s
+            ORDER BY {sort_column} {order_sql}
         """, (f"%{search}%",))
 
     elif search and field in numeric_fields:
         column = numeric_fields[field]
-
         cur.execute(f"""
-            select *
-            from Customer
-            where {column} = %s
-            order by customer_id
+            SELECT *
+            FROM Customer
+            WHERE {column} = %s
+            ORDER BY {sort_column} {order_sql}
         """, (search,))
 
     else:
-        cur.execute("""
-            select *
-            from Customer
-            order by customer_id
+        cur.execute(f"""
+            SELECT *
+            FROM Customer
+            ORDER BY {sort_column} {order_sql}
         """)
 
     customers = cur.fetchall()
     cur.close()
     conn.close()
 
-    return render_template("customers.html", customers=customers)
+    return render_template(
+        "customers.html",
+        customers=customers,
+        sort_by=sort,
+        order=order
+    )
+
 
 
 # updating customer info
@@ -1862,43 +2151,62 @@ def suppliers():
     field = request.args.get("field")
     search = request.args.get("search")
 
+    # NEW sorting
+    sort = request.args.get("sort", "id")
+    order = request.args.get("order", "asc")
+    order = "desc" if order == "desc" else "asc"
+
+    sort_map = {
+        "id": "supplier_id",
+        "name": "supplier_name",
+        "phone": "phone_number"
+    }
+    sort_column = sort_map.get(sort, "supplier_id")
+
     text_fields = {
         "supplier_name": "supplier_name",
-        "phone_number": "phone_number"}
+        "phone_number": "phone_number"
+    }
 
-    numeric_fields = {"supplier_id": "supplier_id"}
+    numeric_fields = {
+        "supplier_id": "supplier_id"
+    }
 
     if search and field in text_fields:
         column = text_fields[field]
         cur.execute(f"""
-            select *
-            from Supplier
-            where {column} LIKE %s
-            order by supplier_id
+            SELECT *
+            FROM Supplier
+            WHERE {column} LIKE %s
+            ORDER BY {sort_column} {order}
         """, (f"%{search}%",))
 
     elif search and field in numeric_fields:
         column = numeric_fields[field]
         cur.execute(f"""
-            select *
-            from Supplier
-            where {column} = %s
-            order by supplier_id
+            SELECT *
+            FROM Supplier
+            WHERE {column} = %s
+            ORDER BY {sort_column} {order}
         """, (search,))
 
     else:
-        cur.execute("""
-            select *
-            from Supplier
-            order by supplier_id
+        cur.execute(f"""
+            SELECT *
+            FROM Supplier
+            ORDER BY {sort_column} {order}
         """)
 
     suppliers = cur.fetchall()
     cur.close()
     conn.close()
 
-    return render_template("suppliers.html", suppliers=suppliers)
-
+    return render_template(
+        "suppliers.html",
+        suppliers=suppliers,
+        sort_by=sort,
+        order=order
+    )
 
 @app.route("/suppliers/toggle_active", methods=["POST"])
 @login_required
@@ -1935,25 +2243,35 @@ def add_supplier():
 
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
+    error = None
 
     if request.method == "POST":
         name = request.form["supplier_name"]
         phone = request.form["phone_number"]
 
-        cur.execute("""
-            insert into Supplier (supplier_name, phone_number)
-            values (%s, %s, %s)
-        """, (name, phone))
+        try:
+            cur.execute("""
+                INSERT INTO Supplier (supplier_name, phone_number)
+                VALUES (%s, %s)
+            """, (name, phone))
 
-        conn.commit()
-        cur.close()
-        conn.close()
+            conn.commit()
+            cur.close()
+            conn.close()
+            return redirect(url_for("suppliers"))
 
-        return redirect(url_for("suppliers"))
+        except mysql.connector.IntegrityError:
+            conn.rollback()
+            error = "A supplier with this phone number already exists."
 
     cur.close()
     conn.close()
-    return render_template("supplier_form.html", supplier=None)
+
+    return render_template(
+        "supplier_form.html",
+        supplier=None,
+        error=error
+    )
 
 @app.route("/suppliers/<int:supplier_id>/edit", methods=["GET", "POST"])
 @login_required
