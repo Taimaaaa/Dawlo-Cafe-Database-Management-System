@@ -322,12 +322,18 @@ input, select {
 
 
 /* ---------------- BADGES ---------------- */
+
 .badge {
+  display: inline-block;
   padding: 4px 8px;
   border-radius: 12px;
   font-size: 12px;
-  background: rgba(0,0,0,0.08);
+  font-weight: 500;
+  color: #000;          /* 👈 force black text */
+  background: #eee;
 }
+
+
 
 /* ---------------- FILTER BAR ---------------- */
 .filter-bar {
@@ -615,10 +621,123 @@ table th a:hover {
   text-decoration: underline;
 }
 
+
+/* =========================================================
+   BOOTSTRAP OVERRIDES — FORCE DAWLO THEME (FIX MISMATCH)
+   Put this at the VERY END of style.css
+   ========================================================= */
+
+/* containers: make bootstrap pages match your spacing */
+.container, .container-fluid, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+  padding: 24px !important;
+}
+
+/* cards: make bootstrap card classes match yours */
+.card, .card-body {
+  background: var(--card) !important;
+  color: var(--text) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08) !important;
+}
+
+/* tables: bootstrap .table was making them look different */
+.table, table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  color: var(--text) !important;
+  background: transparent !important;
+}
+
+.table thead th, thead th, th {
+  background: var(--secondary) !important;
+  color: var(--text) !important;
+  border: none !important;
+  padding: 12px !important;
+  text-align: left !important;
+}
+
+.table tbody td, tbody td, td {
+  padding: 12px !important;
+  border-top: none !important;
+  border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+  background: transparent !important;
+}
+
+/* remove bootstrap zebra/hover if it exists */
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+  background-color: transparent !important;
+}
+.table-hover > tbody > tr:hover > * {
+  background-color: rgba(0,0,0,0.04) !important;
+}
+
+/* forms: bootstrap inputs were changing the look */
+.form-control, .form-select, input, select, textarea {
+  border-radius: 6px !important;
+  border: 1px solid #ccc !important;
+  padding: 8px !important;
+  background: #fff !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+/* buttons: unify bootstrap buttons with your theme */
+.btn, .btn-primary, .btn-success, .btn-outline-primary {
+  background: var(--primary) !important;
+  border: none !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  padding: 8px 14px !important;
+  font-size: 14px !important;
+}
+
+.btn:hover, .btn-primary:hover, .btn-success:hover, .btn-outline-primary:hover {
+  opacity: 0.92 !important;
+}
+
+/* your outlined secondary button style */
+.btn-secondary, .btn-outline-secondary {
+  background: transparent !important;
+  border: 1px solid var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+.btn-secondary:hover, .btn-outline-secondary:hover {
+  background: var(--secondary) !important;
+  color: var(--primary) !important;
+}
+
+/* dropdown menu: make it match your theme (light + dark) */
+.dropdown-menu {
+  border-radius: 8px !important;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18) !important;
+  border: none !important;
+}
+
+.dropdown-item {
+  font-size: 14px !important;
+  padding: 10px 14px !important;
+}
+
+.dropdown-item:hover {
+  background: var(--secondary) !important;
+}
+
+/* dark mode dropdown */
+body.dark .dropdown-menu {
+  background: var(--card) !important;
+}
+body.dark .dropdown-item {
+  color: var(--text) !important;
+}
+body.dark .dropdown-item:hover {
+  background: rgba(255,255,255,0.08) !important;
+}
+
 /* states */
 .table-marker.free { background: #4a7c59; }
 .table-marker.occupied_no_order_yet { background: #8a6d3b; }
 .table-marker.ordered_waiting { background: #c47a2c; }
 .table-marker.served_waiting_payment { background: #a84343; }
 .table-marker.paid_but_seated { background: #5c7a99; }
-
