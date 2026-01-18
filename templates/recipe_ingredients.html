@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- ================= HEADER ================= -->
+<div class="card">
+  <h2>🍽️ Recipe: {{ menu_item.item_name }}</h2>
+</div>
+
+<!-- ================= INGREDIENTS LIST ================= -->
+<div class="card">
+  <h3>Ingredients</h3>
+
+  {% if ingredients %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Warehouse Item</th>
+          <th>Quantity Required</th>
+          <th>Unit</th>
+          {% if is_manager %}
+            <th>Update</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ing in ingredients %}
+        <tr>
+          <td>{{ ing.item_name }}</td>
+
+          {% if is_manager %}
+            <form method="post">
+              <td>
+                <input type="number"
+                       name="quantity_required"
+                       value="{{ ing.quantity_required }}"
+                       min="0.01"
+                       step="0.01"
+                       required>
+              </td>
+              <td>{{ ing.unit_of_measure }}</td>
+
+              <td>
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="warehouse_item_id"
+                       value="{{ ing.warehouse_item_id }}">
+                <button>Save</button>
+              </td>
+            </form>
+          {% else %}
+            <td>{{ ing.quantity_required }}</td>
+            <td>{{ ing.unit_of_measure }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty">No ingredients defined for this menu item.</p>
+  {% endif %}
+</div>
+
+<!-- ================= ADD INGREDIENT (MANAGER ONLY) ================= -->
+{% if is_manager %}
+<div class="card">
+  <h3>➕ Add Ingredient</h3>
+
+  <form method="post">
+    <input type="hidden" name="action" value="add">
+
+    <label>Warehouse Item</label>
+    <select name="warehouse_item_id" required>
+      {% for w in warehouse_items %}
+        <option value="{{ w.item_id }}">
+          {{ w.item_name }} ({{ w.unit_of_measure }})
+        </option>
+      {% endfor %}
+    </select>
+
+    <label>Quantity Required</label>
+    <input type="number"
+           name="quantity_required"
+           min="0.01"
+           step="0.01"
+           required>
+
+    <button>Add Ingredient</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- ================= BACK ================= -->
+<div class="card">
+  <a href="{{ url_for('recipes') }}" class="btn-secondary">
+    ⬅ Back to Recipes
+  </a>
+</div>
+
+{% endblock %}

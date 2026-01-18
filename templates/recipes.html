@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>📋 Recipes</h2>
+
+  <!-- SEARCH -->
+  <form method="get" style="margin-bottom: 10px;">
+    <input type="text"
+           name="search"
+           placeholder="Search menu item"
+           value="{{ search or '' }}">
+  </form>
+
+  <!-- BACK / CLEAR SEARCH -->
+  {% if search %}
+    <a href="{{ url_for('recipes') }}" class="btn-secondary">
+      ← Back to all recipes
+    </a>
+  {% endif %}
+
+  <br><br>
+
+  {% if menu_items %}
+    <table class="table">
+  <thead>
+    <tr>
+      <th>Menu Item</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in menu_items %}
+      <tr>
+        <td>{{ m.item_name }}</td>
+        <td>
+          <a href="{{ url_for('recipe_ingredients', menu_item_id=m.item_id) }}"
+             class="btn-secondary">
+            View Ingredients
+          </a>
+
+          {% if session.position_title == "manager" %}
+            <a href="{{ url_for('edit_recipe', menu_item_id=m.item_id) }}"
+               class="btn-secondary">
+              Edit
+            </a>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+  {% else %}
+    <p class="empty">No menu items found.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

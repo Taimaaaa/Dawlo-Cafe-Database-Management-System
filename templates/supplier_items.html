@@ -4,6 +4,12 @@
 <div class="card">
   <h2>Suppliers & Items</h2>
 
+  {% if session.position_title == "manager" %}
+    <a href="{{ url_for('add_supplier_item') }}" class="btn-secondary">
+      + Add Supplied Item
+    </a>
+    {% endif %}
+
   <!-- FILTER BAR -->
   <div class="filter-bar">
     <button onclick="filterSupplierItems('all')">All</button>
@@ -52,9 +58,7 @@
   <table class="table">
     <thead>
       <tr>
-        <th>Supplier ID</th>
         <th>Supplier</th>
-        <th>Item ID</th>
         <th>Item</th>
         <th>Unit</th>
         <th>Unit Price</th>
@@ -69,9 +73,7 @@
     <tbody>
       {% for s in suppliers %}
       <tr data-supplying="{{ 'supplying' if s.is_supplying else 'stopped' }}">
-        <td>{{ s.supplier_id }}</td>
         <td>{{ s.supplier_name }}</td>
-        <td>{{ s.item_id }}</td>
         <td>{{ s.item_name }}</td>
         <td>{{ s.unit_of_measure }}</td>
         <td>{{ s.unit_price }}</td>
@@ -100,6 +102,14 @@
               {% endif %}
             </button>
           </form>
+          <a href="{{ url_for(
+                'edit_supplier_item',
+                supplier_id=s.supplier_id,
+                item_id=s.item_id
+              ) }}"
+            class="btn-link">
+            Edit
+          </a>
         </td>
         {% endif %}
       </tr>

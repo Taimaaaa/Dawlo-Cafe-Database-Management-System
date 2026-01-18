@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Start New Purchase</h2>
+
+  <!-- ===============================
+       OPTIONAL ITEM SELECTION
+       =============================== -->
+  <form method="get" class="mb-3">
+    <label>Optional: Select Item</label>
+    <select name="item_id" onchange="this.form.submit()">
+      <option value="">-- Any Item --</option>
+      {% for i in warehouse_items %}
+        <option value="{{ i.item_id }}"
+          {% if selected_item_id == i.item_id %}selected{% endif %}>
+          {{ i.item_name }}
+        </option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <!-- ===============================
+       CREATE PURCHASE FORM
+       =============================== -->
+  <form method="post">
+
+    <label>Supplier</label>
+    <select name="supplier_id" required>
+      {% for s in suppliers %}
+        <option value="{{ s.supplier_id }}">
+          {{ s.supplier_name }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label>Purchase Date</label>
+    <input type="date" name="purchase_date" required>
+
+    <button type="submit">Create Purchase</button>
+
+  </form>
+</div>
+
+{% endblock %}

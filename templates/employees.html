@@ -127,9 +127,14 @@
 
         <td>
           <form method="post" action="{{ url_for('toggle_employee_active') }}" style="display:inline;">
-            <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+          <input type="hidden" name="emp_id" value="{{ e.emp_id }}">
+
+          {% if e.is_active %}
             <button type="submit" class="btn danger">Deactivate</button>
-          </form>
+          {% else %}
+            <button type="submit" class="btn success">Activate</button>
+          {% endif %}
+        </form>
 
           <a href="{{ url_for('shift_history', emp_id=e.emp_id) }}" class="btn-link">View Shifts</a>
           <a href="{{ url_for('edit_employee', emp_id=e.emp_id) }}" class="btn-link">Edit</a>

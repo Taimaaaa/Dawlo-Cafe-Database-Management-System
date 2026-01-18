@@ -1,51 +1,146 @@
 {% extends "base.html" %}
 {% block content %}
 
-<div class="container-fluid mt-4">
+<style>
+/* Dashboard ONLY full width */
+.dashboard-container {
+  width: 100%;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Charts */
+.chart-box {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+/* FORCE full width ONLY on dashboard */
+.dashboard-page .container {
+  max-width: 100% !important;
+  width: 100% !important;
+}
+</style>
+
+<div class="dashboard-container mt-4">
 
   <h2 class="mb-4">Manager Dashboard</h2>
 
-  <!-- ROW 1 -->
-  <div class="row g-4">
-    <div class="col-lg-8">
-      <div class="card p-3 h-100">
-        <h5>Monthly Sales</h5>
-        <img src="{{ url_for('static', filename='charts/monthly_sales.png') }}"
-             class="img-fluid">
+  <!-- ================= KPI ROW ================= -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card p-3 text-center kpi-card">
+        <small>Total Orders</small>
+        <h2>{{ total_orders }}</h2>
       </div>
     </div>
 
-    <div class="col-lg-4">
-      <div class="card p-3 h-100">
-        <h5>Orders by Type</h5>
-        <img src="{{ url_for('static', filename='charts/order_types.png') }}"
-             class="img-fluid">
+    <div class="col-md-3">
+      <div class="card p-3 text-center kpi-card">
+        <small>Total Customers</small>
+        <h2>{{ total_customers }}</h2>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-3 text-center kpi-card">
+        <small>Total Revenue</small>
+        <h2>${{ total_revenue }}</h2>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="card p-3 text-center kpi-card">
+        <small>Profit</small>
+        <h2>${{ profit }}</h2>
       </div>
     </div>
   </div>
 
-  <!-- ROW 2 -->
+  <!-- ================= ROW 1 ================= -->
+  <div class="row g-4">
+
+    <!-- Monthly Revenue -->
+    <div class="col-lg-4">
+      <div class="card p-3 h-100">
+        <h6>Monthly Revenue</h6>
+        <div class="chart-box">
+          <canvas id="monthlySalesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Sales -->
+    <div class="col-lg-4">
+      <div class="card p-3 h-100">
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 class="mb-0">Daily Sales for Selected Month</h6>
+
+          <form method="get">
+            <input
+              type="month"
+              name="month"
+              value="{{ selected_month }}"
+              min="2022-01"
+              max="2035-12"
+              class="form-control form-control-sm"
+              style="width: 140px"
+              onchange="this.form.submit()"
+            >
+          </form>
+        </div>
+
+        <div class="chart-box">
+          <canvas id="dailySalesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orders by Type -->
+    <div class="col-lg-4">
+      <div class="card p-3 h-100">
+        <h6>Orders by Type</h6>
+        <div class="chart-box">
+          <canvas id="orderTypesChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= ROW 2 ================= -->
   <div class="row g-4 mt-1">
+
+    <!-- Sales Distribution -->
     <div class="col-lg-4">
       <div class="card p-3">
-        <h5>Sales Distribution</h5>
-        <img src="{{ url_for('static', filename='charts/sales_distribution.png') }}"
-             class="img-fluid">
+        <h6>Sales Distribution</h6>
+        <div class="chart-box">
+          <canvas id="salesDistributionChart"></canvas>
+        </div>
       </div>
     </div>
 
+    <!-- Top Ordered Items -->
     <div class="col-lg-4">
       <div class="card p-3">
-        <h5>Top Ordered Items</h5>
-        <img src="{{ url_for('static', filename='charts/top_items.png') }}"
-             class="img-fluid">
+        <h6>Top Ordered Items</h6>
+        <div class="chart-box">
+          <canvas id="topItemsChart"></canvas>
+        </div>
       </div>
     </div>
 
+    <!-- Most Frequent Customers -->
     <div class="col-lg-4">
       <div class="card p-3">
-        <h5>Most Frequent Customers</h5>
-        <table class="table table-sm">
+        <h6>Most Frequent Customers</h6>
+        <table class="table table-sm mb-0">
           <thead>
             <tr>
               <th>Name</th>
@@ -63,8 +158,163 @@
         </table>
       </div>
     </div>
+
+    <div class="card p-3 mt-4">
+  <h6>Menu Items causing loss</h6>
+
+  {% if loss_items %}
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Selling Price</th>
+        <th>Purchase Price</th>
+        <th>Loss</th>
+
+      </tr>
+    </thead>
+    <tbody>
+  {% for i in loss_items %}
+  <tr>
+    <td>{{ i.item_name }}</td>
+    <td>${{ "%.2f"|format(i.selling_price) }}</td>
+    <td>${{ "%.2f"|format(i.purchase_price) }}</td>
+    <td style="color:#9b3c3c;">
+      ${{ "%.2f"|format(i.loss_amount) }}
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
+
+  </table>
+  {% else %}
+    <p class="text-muted">No loss-making items.</p>
+  {% endif %}
+</div>
+
+<div class="card p-3 mt-4">
+  <h6>Most Purchased Items (Last 6 Months)</h6>
+
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Total Quantity</th>
+        <th>Avg Supplier Price</th>
+        <th>Total Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in top_purchased_items %}
+      <tr>
+        <td>{{ i.item_name }}</td>
+        <td>{{ i.total_quantity }}</td>
+        <td>${{ "%.2f"|format(i.avg_purchase_price) }}</td>
+        <td>${{ "%.2f"|format(i.total_purchase_cost) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
   </div>
 
 </div>
+
+<!-- ================= Chart.js ================= -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const COLORS = {
+  /* Soft blue (keep as main) */
+  blue: "rgba(100, 149, 237, 0.65)",      // cornflower blue
+  blueBorder: "rgba(100, 149, 237, 1)",
+
+  /* Pastel purple */
+  purple: "rgba(186, 172, 220, 0.65)",    // lavender
+  purpleBorder: "rgba(186, 172, 220, 1)",
+
+  /* Pastel pink */
+  pink: "rgba(245, 183, 197, 0.65)",      // blush pink
+  pinkBorder: "rgba(245, 183, 197, 1)"
+};
+
+
+/* Monthly Revenue */
+new Chart(document.getElementById("monthlySalesChart"), {
+  type: "line",
+  data: {
+    labels: {{ months | tojson }},
+    datasets: [{
+      label: "Revenue",
+      data: {{ revenues | tojson }},
+      tension: 0.3,
+      backgroundColor: COLORS.blue,
+      borderColor: COLORS.blueBorder
+    }]
+  }
+});
+
+/* Daily Sales */
+new Chart(document.getElementById("dailySalesChart"), {
+  type: "line",
+  data: {
+    labels: {{ daily_dates | tojson }},
+    datasets: [{
+      label: "Daily Sales",
+      data: {{ daily_totals | tojson }},
+      tension: 0.3,
+      backgroundColor: COLORS.purple,
+      borderColor: COLORS.purpleBorder
+    }]
+  }
+});
+
+/* Orders by Type */
+new Chart(document.getElementById("orderTypesChart"), {
+  type: "bar",
+  data: {
+    labels: {{ order_types | tojson }},
+    datasets: [{
+      label: "Orders",
+      data: {{ order_counts | tojson }},
+      backgroundColor: COLORS.pink,
+      borderColor: COLORS.pinkBorder
+    }]
+  }
+});
+
+/* Sales Distribution */
+new Chart(document.getElementById("salesDistributionChart"), {
+  type: "pie",
+  data: {
+    labels: {{ dist_labels | tojson }},
+    datasets: [{
+      data: {{ dist_sales | tojson }},
+      backgroundColor: [
+        COLORS.blue,
+        COLORS.pink,
+        COLORS.purple,
+        "rgba(255, 206, 86, 0.7)",
+        "rgba(75, 192, 192, 0.7)"
+      ]
+    }]
+  }
+});
+
+/* Top Ordered Items */
+new Chart(document.getElementById("topItemsChart"), {
+  type: "bar",
+  data: {
+    labels: {{ item_names | tojson }},
+    datasets: [{
+      label: "Quantity Sold",
+      data: {{ item_qtys | tojson }},
+      backgroundColor: COLORS.blue
+    }]
+  }
+});
+</script>
 
 {% endblock %}

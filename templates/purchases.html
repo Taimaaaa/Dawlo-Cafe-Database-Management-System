@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>Purchases</h2>
+
+  <!-- SEARCH BAR -->
+  <form method="get" class="search-bar">
+    <select name="field" required>
+
+      <option value="purchase_id"
+        {% if request.args.get('field') == 'purchase_id' %}selected{% endif %}>
+        Purchase ID
+      </option>
+
+      <option value="purchase_date"
+        {% if request.args.get('field') == 'purchase_date' %}selected{% endif %}>
+        Date (YYYY-MM-DD)
+      </option>
+
+      <option value="purchase_status"
+        {% if request.args.get('field') == 'purchase_status' %}selected{% endif %}>
+        Status
+      </option>
+
+      <option value="total_cost"
+        {% if request.args.get('field') == 'total_cost' %}selected{% endif %}>
+        Total
+      </option>
+
+      <option value="supplier_name"
+        {% if request.args.get('field') == 'supplier_name' %}selected{% endif %}>
+        Supplier Name
+      </option>
+
+    </select>
+
+    <input
+      type="text"
+      name="search"
+      placeholder="Search…"
+      value="{{ request.args.get('search', '') }}"
+      required
+    >
+  </form>
+
+  {% if session.position_title == "manager" %}
+    <a href="{{ url_for('start_purchase') }}" class="btn-secondary">
+      + Add Purchase
+    </a>
+  {% endif %}
+
+  {% if purchases %}
+  <table>
+    <tr>
+      <th>Purchase</th>
+      <th>Date</th>
+      <th>Supplier</th>
+      <th>Status</th>
+      <th>Total</th>
+      <th>Action</th>
+    </tr>
+
+    {% for p in purchases %}
+    <tr>
+      <td>#{{ p.purchase_id }}</td>
+      <td>{{ p.purchase_date }}</td>
+      <td>{{ p.supplier_name }}</td>
+      <td><b>{{ p.purchase_status }}</b></td>
+      <td>{{ p.total_cost }}</td>
+      <td>
+        <a href="/purchase/{{ p.purchase_id }}">Open</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  {% else %}
+    <p class="empty">No purchases yet.</p>
+  {% endif %}
+
+  {% if request.args.get('search') %}
+    <a href="{{ url_for('purchases_list') }}" class="btn-secondary">
+      ← Back to Purchases
+    </a>
+  {% endif %}
+
+</div>
+
+{% endblock %}

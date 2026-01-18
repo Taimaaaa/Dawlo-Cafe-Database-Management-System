@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+
+{% if error %}
+<div class="popup-error">
+  {{ error }}
+  <button onclick="this.parentElement.style.display='none'">✕</button>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>
+    {{ 'Edit Supplied Item' if supplier_item else 'Add Supplied Item' }}
+  </h2>
+
+  <form method="post">
+
+    {# ---------- SUPPLIER ---------- #}
+    <label>Supplier</label>
+
+    {% if supplier_item %}
+      <input type="text"
+             value="{{ supplier_item.supplier_name }}"
+             disabled>
+    {% else %}
+      <select name="supplier_id" required>
+        <option value="">Select Supplier</option>
+        {% for s in suppliers %}
+          <option value="{{ s.supplier_id }}">
+            {{ s.supplier_name }} – {{ s.phone_number }}
+          </option>
+        {% endfor %}
+      </select>
+    {% endif %}
+
+    {# ---------- ITEM ---------- #}
+    <label>Item</label>
+
+    {% if supplier_item %}
+      <input type="text"
+             value="{{ supplier_item.item_name }}"
+             disabled>
+    {% else %}
+      <select name="warehouse_item_id" required>
+        <option value="">Select Item</option>
+        {% for i in items %}
+          <option value="{{ i.item_id }}">
+            {{ i.item_name }} ({{ i.unit_of_measure }})
+          </option>
+        {% endfor %}
+      </select>
+    {% endif %}
+
+    {# ---------- UNIT PRICE ---------- #}
+    <label>Unit Price</label>
+    <input type="number"
+           name="unit_price"
+           step="0.01"
+           min="0"
+           value="{{ supplier_item.unit_price if supplier_item else '' }}"
+           required>
+
+    {# ---------- DELIVERY DAYS ---------- #}
+    <label>Average Delivery Days</label>
+    <input type="number"
+           name="avg_delivery_days"
+           min="0"
+           value="{{ supplier_item.avg_delivery_days if supplier_item else '' }}"
+           required>
+
+    <button type="submit">
+      {{ 'Update Supplied Item' if supplier_item else 'Add Supplied Item' }}
+    </button>
+
+    <a href="{{ url_for('supplier_items') }}" class="btn-secondary">
+      Cancel
+    </a>
+
+  </form>
+</div>
+
+{% endblock %}

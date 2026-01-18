@@ -4,41 +4,86 @@
   <style>
     body {
       font-family: monospace;
+      background: #f5f5f5;
       padding: 20px;
     }
+
+    .receipt {
+      width: 300px;              /* RECEIPT WIDTH */
+      margin: auto;              /* center on page */
+      background: white;
+      padding: 16px;
+      border: 1px dashed #999;
+    }
+
     h2 {
       text-align: center;
+      margin: 0 0 10px 0;
     }
+
+    p {
+      margin: 4px 0;
+      font-size: 14px;
+    }
+
     table {
       width: 100%;
-      margin-top: 12px;
+      border-collapse: collapse;
+      margin-top: 10px;
     }
+
     td {
-      padding: 6px 0;
+      padding: 4px 0;
+      font-size: 14px;
     }
-    .total {
-      margin-top: 12px;
+
+    .right {
       text-align: right;
+    }
+
+    .divider {
+      border-top: 1px dashed #999;
+      margin: 10px 0;
+    }
+
+    .total {
       font-weight: bold;
+      text-align: right;
+      margin-top: 6px;
+    }
+
+    .center {
+      text-align: center;
+      margin-top: 10px;
     }
   </style>
 </head>
 
 <body>
-  <h2>Dawlo Café</h2>
-  <p>Order #{{ order.order_id }}</p>
-  <p>{{ order.order_date }}</p>
 
-  <table>
-    {% for i in items %}
-    <tr>
-      <td>{{ i.item_name }} × {{ i.quantity }}</td>
-      <td style="text-align:right;">{{ i.subtotal }}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="receipt">
+    <h2>Dawlo Café</h2>
 
-  <p class="total">Total: {{ order.total }}</p>
-  <p style="text-align:center;">Thank you ☕</p>
+    <p>Order #{{ order.order_id }}</p>
+    <p>{{ order.order_date }}</p>
+
+    <div class="divider"></div>
+
+    <table>
+      {% for i in items %}
+      <tr>
+        <td>{{ i.item_name }} × {{ i.quantity }}</td>
+        <td class="right">{{ i.subtotal }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <div class="divider"></div>
+
+    <p class="total">Total: {{ order.total }}</p>
+
+    <p class="center">Thank you ☕</p>
+  </div>
+
 </body>
 </html>
