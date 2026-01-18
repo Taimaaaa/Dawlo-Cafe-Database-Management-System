@@ -1,7 +1,6 @@
-DROP DATABASE dawlo_phase3;
-CREATE DATABASE dawlo_phase3;
-USE dawlo_phase3;
-
+DROP DATABASE dawlo;
+CREATE DATABASE dawlo;
+USE dawlo;
 
 create table Customer ( -- 3NF
     customer_id int primary key auto_increment,
@@ -23,7 +22,7 @@ create table Menu_Item ( -- 3NF
 create table Warehouse_Item ( -- 3NF 
     item_id int primary key auto_increment,
     item_name varchar(64) not null unique,
-    stock_quantity real not null,
+    stock_quantity real not null default 0,
     reorder_level real not null,
     unit_of_measure varchar(32) not null
 );
@@ -33,6 +32,7 @@ create table Recipe ( -- 3NF
     menu_item_id int,
     warehouse_item_id int,
     quantity_required real not null,
+    is_active int not null default 1, -- if the ingredient is active in the recipe
     primary key (menu_item_id, warehouse_item_id),
     foreign key (menu_item_id) references Menu_Item (item_id),
     foreign key (warehouse_item_id) references Warehouse_Item (item_id)
@@ -113,10 +113,22 @@ create table Emp_Order ( -- 3NF
 create table Purchase ( 
 	purchase_id int primary key auto_increment,
     purchase_date date not null,
-    payment_status varchar(32) not null,
     total_cost real not null,
+    purchase_status varchar(16) not null default 'draft' check (purchase_status in ('draft', 'confirmed', 'delivered', 'cancelled')), 
     emp_id int not null,
-    foreign key (emp_id) references Employee (emp_id)
+    supplier_id int not null,
+    foreign key (emp_id) references Employee (emp_id),
+    foreign key (supplier_id) references Supplier (supplier_id)
+);
+
+create table Purchase_Item (
+    purchase_id int,
+    warehouse_item_id int,
+    quantity real not null,
+    unit_price real not null,
+    primary key (purchase_id, warehouse_item_id),
+    foreign key (purchase_id) references Purchase (purchase_id),
+    foreign key (warehouse_item_id) references Warehouse_Item (item_id)
 );
 
 create table Supplier ( -- 3NF
@@ -124,19 +136,6 @@ create table Supplier ( -- 3NF
     supplier_name varchar (64) not null,
     phone_number varchar (32) not null unique,
     is_active int not null default 1  -- whether this supplier is still available
-);
-
--- a ternary relation: purchasing a warehouse item from a supplier
-create table Purchase_Item_Supplier ( -- 3NF
-	purchase_id int,
-    warehouse_item_id int,
-    supplier_id int,
-    quantity real not null,
-    unit_cost real not null,
-    primary key (purchase_id, warehouse_item_id, supplier_id),
-    foreign key (purchase_id) references Purchase (purchase_id),
-    foreign key (warehouse_item_id) references Warehouse_Item (item_id),
-    foreign key (supplier_id) references Supplier (supplier_id)
 );
 
 create table Supplier_Item ( -- 3NF
@@ -268,21 +267,92 @@ VALUES
 
 -- Supplier 5
 (5, 4, 6.50, 2),    -- Flour
-(5, 7, 7.60, 3);    -- Cheese
+(5, 7, 7.60, 3),    -- Cheese
+
+-- Supplier 6
+(6, 2, 10, 2),
+(6, 7, 13.5, 5);
+
+INSERT INTO Supplier_Item
+(supplier_id, warehouse_item_id, unit_price, avg_delivery_days)
+VALUES (6, 7, 13.5, 5);
+
+-- for statistcs:
+INSERT INTO Table_Session
+(table_id, session_start, session_end, is_closed, party_size)
+VALUES
+-- January
+(1, '2025-01-10 18:00:00', '2025-01-10 20:00:00', 1, 2),
+(3, '2025-01-22 19:00:00', '2025-01-22 21:00:00', 1, 4),
+
+-- February
+(5, '2025-02-14 20:00:00', '2025-02-14 22:00:00', 1, 4),
+(7, '2025-02-20 18:30:00', '2025-02-20 20:30:00', 1, 6),
+
+-- March
+(2, '2025-03-05 17:45:00', '2025-03-05 19:30:00', 1, 2),
+(15,'2025-03-21 18:00:00', '2025-03-21 21:00:00', 1, 6),
+
+-- April
+(4, '2025-04-09 19:00:00', '2025-04-09 21:30:00', 1, 4),
+
+-- May
+(8, '2025-05-12 18:15:00', '2025-05-12 20:45:00', 1, 7);
+
+INSERT INTO Orders
+(customer_id, table_id, session_start, order_date, total, order_status, order_type)
+VALUES
+-- January
+(1, 1, '2025-01-10 18:00:00', '2025-01-10 18:10:00', 48.00, 'paid', 'dine_in'),
+(2, 3, '2025-01-22 19:00:00', '2025-01-22 19:20:00', 72.50, 'paid', 'dine_in'),
+
+-- February
+(3, 5, '2025-02-14 20:00:00', '2025-02-14 20:05:00', 85.00, 'paid', 'dine_in'),
+(1, 7, '2025-02-20 18:30:00', '2025-02-20 18:45:00', 95.00, 'paid', 'dine_in'),
+
+-- March
+(4, 2, '2025-03-05 17:45:00', '2025-03-05 18:00:00', 35.00, 'paid', 'dine_in'),
+(2,15, '2025-03-21 18:00:00', '2025-03-21 18:25:00',110.00, 'paid', 'dine_in'),
+
+-- April
+(3, 4, '2025-04-09 19:00:00', '2025-04-09 19:15:00', 65.00, 'paid', 'dine_in'),
+
+-- May
+(1, 8, '2025-05-12 18:15:00', '2025-05-12 18:35:00',120.00, 'paid', 'dine_in');
+
+INSERT INTO Orders
+(customer_id, table_id, session_start, order_date, total, order_status, order_type)
+VALUES
+-- January
+(2, NULL, NULL, '2025-01-05 13:30:00', 22.00, 'paid', 'takeaway'),
+
+-- February
+(4, NULL, NULL, '2025-02-03 11:15:00', 18.50, 'paid', 'takeaway'),
+
+-- March
+(1, NULL, NULL, '2025-03-02 16:00:00', 30.00, 'paid', 'takeaway'),
+
+-- April
+(2, NULL, NULL, '2025-04-18 10:45:00', 27.00, 'paid', 'takeaway'),
+
+-- May
+(3, NULL, NULL, '2025-05-25 19:20:00', 55.00, 'paid', 'takeaway');
+
 
 SELECT * FROM Order_Item;
-
-
 select * from Orders;
 select * from Customer;
 
 select * from Employee;
-
+select * from Timelog;
 select * from Warehouse_Item;
 select * from Stock_Movement;
 
 SELECT * FROM Table_Session;
 
-select * from Stock_Movement;
-
+select * from Payment;
 select * from Supplier;
+select * from Supplier_Item;
+
+select * from Purchase;
+select * from Purchase_Item;
