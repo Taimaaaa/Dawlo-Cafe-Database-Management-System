@@ -4,10 +4,6 @@ from flask import Flask, render_template, request, redirect, url_for, session, a
 from db import get_db_connection
 from datetime import datetime
 import mysql.connector
-import io
-from flask import Response
-import matplotlib.pyplot as plt
-
 from functools import wraps
 
 
@@ -151,7 +147,6 @@ def login():
             error = "Incorrect password."
 
         else:
-            # ✅ SUCCESSFUL LOGIN
             session.clear()
             session["emp_id"] = emp["emp_id"]
             session["emp_name"] = emp["emp_name"]
@@ -162,7 +157,6 @@ def login():
             else:
                 return redirect(url_for("tables_dashboard"))
 
-    # ✅ ALWAYS return something
     return render_template("login.html", error=error)
 
 
@@ -179,17 +173,55 @@ def home():
 @login_required
 @admin_required
 def dashboard():
-    import matplotlib.pyplot as plt
-    import os
-
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
 
-    os.makedirs("static/charts", exist_ok=True)
+    # the manager selects a month to check sales in that month
+    selected_month = request.args.get("month")
+    # if month not chosen get this month this year
+    if not selected_month:
+        selected_month = datetime.now().strftime("%Y-%m")
 
-    # =========================
-    # 1. Monthly Sales (Line)
-    # =========================
+    year, month = selected_month.split("-")
+
+    # -------- total orders ---------
+    cur.execute("""
+        select count(*) as total_orders
+        from Orders
+        where order_status = 'paid'
+    """)
+    total_orders = cur.fetchone()["total_orders"]
+
+    # ------- total customers ------
+    cur.execute("""
+        select count(distinct customer_id) as total_customers
+        from Orders
+        where order_status = 'paid'
+    """)
+    total_customers = cur.fetchone()["total_customers"]
+
+    # ------ total revenue ------
+    cur.execute("""
+        select sum(total) as total_revenue
+        from orders
+        where order_status = 'paid'
+    """)
+    row = cur.fetchone()
+    total_revenue = float(row["total_revenue"]) if row["total_revenue"] is not None else 0  
+
+    # total cost
+    cur.execute("""
+        select sum(pi.quantity * pi.unit_price) as total_cost
+        from Purchase_Item pi
+        join Purchase p on p.purchase_id = pi.purchase_id
+        where p.purchase_status in ('confirmed', 'delivered');
+    """)
+    total_cost = cur.fetchone()["total_cost"] or 0
+
+    profit = round(total_revenue - total_cost, 2)
+
+
+    # ----- monthly sales -----
     cur.execute("""
         SELECT
             DATE_FORMAT(order_date, '%Y-%m') AS month,
@@ -202,21 +234,34 @@ def dashboard():
     monthly = cur.fetchall()
 
     months = [r["month"] for r in monthly]
-    revenue = [float(r["revenue"]) for r in monthly]
+    revenues = [float(r["revenue"]) for r in monthly]
 
-    plt.figure(figsize=(8, 4))
-    plt.plot(months, revenue, marker="o")
-    plt.title("Monthly Sales")
-    plt.xlabel("Month")
-    plt.ylabel("Revenue")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("static/charts/monthly_sales.png")
-    plt.close()
+    # --------  total daily sales for a selected month sorted by date -----
+    cur.execute("""
+        select DATE(order_date) as sale_date, sum(total) as daily_sales
+        from Orders
+        where order_status = 'paid'
+        and YEAR(order_date) = %s
+        and MONTH(order_date) = %s
+        group by DATE(order_date)
+        order by sale_date
+    """, (year, month))
 
-    # =========================
-    # 2. Top Ordered Items (Bar)
-    # =========================
+    daily_sales = cur.fetchall()
+
+    daily_dates = []
+    daily_totals = []
+
+    for d in daily_sales:
+        # date format
+        sale_date_str = d["sale_date"].strftime("%Y-%m-%d")
+        daily_dates.append(sale_date_str)
+
+        # convert total to float
+        daily_totals.append(float(d["daily_sales"]))
+
+
+    # -------- Top Ordered items ---------
     cur.execute("""
         SELECT
             mi.item_name,
@@ -232,20 +277,10 @@ def dashboard():
     """)
     items = cur.fetchall()
 
-    names = [i["item_name"] for i in items]
-    qtys = [int(i["qty"]) for i in items]
+    item_names = [i["item_name"] for i in items]
+    item_qtys = [int(i["qty"]) for i in items]
 
-    plt.figure(figsize=(6, 4))
-    plt.bar(names, qtys)
-    plt.title("Top Ordered Items")
-    plt.ylabel("Quantity Sold")
-    plt.tight_layout()
-    plt.savefig("static/charts/top_items.png")
-    plt.close()
-
-    # =========================
-    # 3. Sales Distribution (Pie)
-    # =========================
+    #  Sales Distribution
     cur.execute("""
         SELECT
             mi.item_name,
@@ -261,19 +296,10 @@ def dashboard():
     """)
     dist = cur.fetchall()
 
-    labels = [d["item_name"] for d in dist]
-    sales = [float(d["sales"]) for d in dist]
+    dist_labels = [d["item_name"] for d in dist]
+    dist_sales = [float(d["sales"]) for d in dist]
 
-    plt.figure(figsize=(5, 5))
-    plt.pie(sales, labels=labels, autopct="%1.1f%%", startangle=140)
-    plt.title("Sales Distribution")
-    plt.tight_layout()
-    plt.savefig("static/charts/sales_distribution.png")
-    plt.close()
-
-    # =========================
-    # 4. Orders by Type (Bar)
-    # =========================
+    # Orders by Type
     cur.execute("""
         SELECT
             order_type,
@@ -284,20 +310,10 @@ def dashboard():
     """)
     types = cur.fetchall()
 
-    labels = [t["order_type"].replace("_", " ").title() for t in types]
-    counts = [t["count"] for t in types]
+    order_types = [t["order_type"].replace("_", " ").title() for t in types]
+    order_counts = [t["count"] for t in types]
 
-    plt.figure(figsize=(5, 4))
-    plt.bar(labels, counts)
-    plt.title("Orders by Type")
-    plt.ylabel("Orders")
-    plt.tight_layout()
-    plt.savefig("static/charts/order_types.png")
-    plt.close()
-
-    # =========================
-    # Top Customers (table only)
-    # =========================
+    #  --------- Top Customers (table) ---------
     cur.execute("""
         SELECT
             c.customer_name,
@@ -311,80 +327,68 @@ def dashboard():
     """)
     top_customers = cur.fetchall()
 
+    # ----- money earned from selling this item is less than the money spent to produce it -----
+    cur.execute("""
+        select m.item_name, m.price as selling_price, min(s.unit_price) as purchase_price,
+                (min(s.unit_price) - m.price) as loss_amount
+                
+        from menu_item m join recipe r on r.menu_item_id = m.item_id 
+                and r.is_active = 1
+        join supplier_item s on s.warehouse_item_id = r.warehouse_item_id 
+                and s.is_supplying = 1
+        group by m.item_id, m.item_name, m.price
+        having min(s.unit_price) > m.price       -- where the cheapest purchase cost is higher than the selling price
+        order by loss_amount desc;
+    """)
+
+    loss_items = cur.fetchall()
+
+    # top most 5 purchased items in last 6 months
+    cur.execute("""
+        select w.item_name,
+            sum(pi.quantity) as total_quantity,
+            avg(pi.unit_price) as avg_purchase_price,
+            sum(pi.quantity * pi.unit_price) as total_purchase_cost
+                
+        from purchase p, purchase_item pi, warehouse_item w
+        where p.purchase_id = pi.purchase_id
+        and pi.warehouse_item_id = w.item_id
+        and p.purchase_status in ('confirmed', 'delivered')
+        and year(p.purchase_date) = year(curdate())
+        and month(p.purchase_date) >= month(curdate()) - 6
+                
+        group by w.item_id, w.item_name
+        order by total_purchase_cost desc
+        limit 5;  
+        """)
+
+    top_purchased_items = cur.fetchall()
+
+
     cur.close()
     conn.close()
 
     return render_template(
         "dashboard.html",
-        top_customers=top_customers
+        total_orders=total_orders,
+        total_customers = total_customers,
+        total_revenue = total_revenue,
+        profit = profit,
+        months=months,
+        revenues=revenues,
+        item_names=item_names,
+        item_qtys=item_qtys,
+        dist_labels=dist_labels,
+        dist_sales=dist_sales,
+        order_types=order_types,
+        order_counts=order_counts,
+        top_customers=top_customers,
+        daily_dates=daily_dates,
+        daily_totals=daily_totals,
+        selected_month=selected_month,
+        loss_items=loss_items,
+        top_purchased_items = top_purchased_items,
     )
-
-@app.route("/charts/monthly-sales")
-@login_required
-@admin_required
-def monthly_sales_chart():
-    conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-
-    cur.execute("""
-        SELECT DATE_FORMAT(order_date, '%Y-%m') AS month,
-               SUM(total) AS revenue
-        FROM Orders
-        WHERE order_status = 'paid'
-        GROUP BY month
-        ORDER BY month
-    """)
-    data = cur.fetchall()
-    conn.close()
-
-    months = [d["month"] for d in data]
-    revenue = [float(d["revenue"]) for d in data]
-
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(months, revenue, marker="o")
-    ax.set_title("Monthly Sales")
-    ax.set_ylabel("Revenue")
-    ax.set_xlabel("Month")
-    ax.grid(True)
-
-    buf = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png")
-    plt.close(fig)
-    buf.seek(0)
-
-    return Response(buf.getvalue(), mimetype="image/png")
-
-@app.route("/charts/orders-by-type")
-@login_required
-@admin_required
-def orders_type_chart():
-    conn = get_db_connection()
-    cur = conn.cursor(dictionary=True)
-
-    cur.execute("""
-        SELECT order_type, COUNT(*) AS cnt
-        FROM Orders
-        WHERE order_status = 'paid'
-        GROUP BY order_type
-    """)
-    data = cur.fetchall()
-    conn.close()
-
-    labels = [d["order_type"] for d in data]
-    counts = [d["cnt"] for d in data]
-
-    fig, ax = plt.subplots(figsize=(4, 3))
-    ax.bar(labels, counts)
-    ax.set_title("Orders by Type")
-
-    buf = io.BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png")
-    plt.close(fig)
-    buf.seek(0)
-
-    return Response(buf.getvalue(), mimetype="image/png")
 
 
 from datetime import datetime
@@ -488,7 +492,6 @@ def floorplan_dashboard():
     conn = get_db_connection()
     cur = conn.cursor(dictionary=True)
 
-    # 🔎 DEBUG (temporary)
     cur.execute("SELECT DATABASE() AS db")
     print("FLASK CONNECTED TO:", cur.fetchone()["db"])
 
@@ -534,7 +537,6 @@ def floorplan_dashboard():
                 elif st == "paid":
                     table_state = "paid_but_seated"
 
-        # THIS is where positioning belongs
         top, left = TABLE_POSITIONS.get(table_id, (50, 50))
 
         result.append({
@@ -1211,6 +1213,224 @@ def order_page(order_id):
         assigned_employees=assigned_employees
     )
 
+@app.route("/recipes")
+@login_required
+def recipes():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    search = request.args.get("search")
+
+    if search:
+        cur.execute("""
+            select item_id, item_name
+            from Menu_Item
+            where item_name like %s
+            order by item_name
+        """, (f"%{search}%",))
+    else:
+        cur.execute("""
+            select item_id, item_name
+            from Menu_Item
+            order by item_name
+        """)
+
+    menu_items = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "recipes.html",
+        menu_items=menu_items,
+        search=search
+    )
+
+@app.route("/recipes/<int:menu_item_id>", methods=["GET", "POST"])
+@login_required
+def recipe_ingredients(menu_item_id):
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    is_manager = session.get("role") == "manager"
+
+    # menu item info
+    cur.execute("""
+        select item_name
+        from Menu_Item
+        where item_id = %s
+    """, (menu_item_id,))
+    menu_item = cur.fetchone()
+
+    if not menu_item:
+        cur.close()
+        conn.close()
+        return "Menu item not found", 404
+
+    # ingredients
+    cur.execute("""
+        select w.item_name,
+               r.quantity_required,
+               w.unit_of_measure,
+               w.item_id as warehouse_item_id
+        from Recipe r
+        join Warehouse_Item w on r.warehouse_item_id = w.item_id
+        where r.menu_item_id = %s
+        order by w.item_name
+    """, (menu_item_id,))
+    ingredients = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "recipe_ingredients.html",
+        menu_item=menu_item,
+        ingredients=ingredients,
+        is_manager=is_manager,
+        menu_item_id=menu_item_id
+    )
+ 
+
+@app.route("/recipes/<int:menu_item_id>/edit", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_recipe(menu_item_id):
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # ---------- Menu Item ----------
+    cur.execute("""
+        select item_id, item_name
+        from Menu_Item
+        where item_id = %s
+    """, (menu_item_id,))
+    menu_item = cur.fetchone()
+
+    if not menu_item:
+        cur.close()
+        conn.close()
+        return "Menu item not found", 404
+
+    # ---------- POST actions ----------
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        # ---------- ADD ingredient ----------
+        if action == "add":
+            warehouse_item_id = int(request.form["warehouse_item_id"])
+            quantity_required = float(request.form["quantity_required"])
+
+            if quantity_required <= 0:
+                return redirect(url_for("edit_recipe", menu_item_id=menu_item_id))
+
+            # check if ingredient already exists 
+            cur.execute("""
+                select is_active
+                from Recipe
+                where menu_item_id = %s and warehouse_item_id = %s
+            """, (menu_item_id, warehouse_item_id))
+            existing = cur.fetchone()
+
+            if existing:
+                if existing["is_active"] == 1:
+                    # already active -> show error
+                    return redirect(url_for("edit_recipe", menu_item_id=menu_item_id, error="exists", warehouse_item_id=warehouse_item_id))
+                
+                else:
+                    # existed before but inactive -> reactivate
+                    cur.execute("""
+                        update Recipe
+                        set quantity_required = %s,
+                            is_active = 1
+                        where menu_item_id = %s and warehouse_item_id = %s
+                    """, (quantity_required, menu_item_id, warehouse_item_id))
+            else:
+                # insert new ingredient
+                cur.execute("""
+                    insert into Recipe
+                    (menu_item_id, warehouse_item_id, quantity_required)
+                    values (%s, %s, %s)
+                """, (menu_item_id, warehouse_item_id, quantity_required))
+
+            conn.commit()
+            return redirect(url_for("edit_recipe", menu_item_id=menu_item_id))
+
+        # ---------- update quantity required of ingredient ----------
+        elif action == "update":
+            warehouse_item_id = int(request.form["warehouse_item_id"])
+            quantity_required = float(request.form["quantity_required"])
+
+            if quantity_required <= 0:
+                return redirect(url_for("edit_recipe", menu_item_id=menu_item_id))
+
+            cur.execute("""
+                update Recipe
+                set quantity_required = %s
+                where menu_item_id = %s and warehouse_item_id = %s and is_active = 1
+            """, (quantity_required, menu_item_id, warehouse_item_id))
+
+            conn.commit()
+            return redirect(url_for("edit_recipe", menu_item_id=menu_item_id))
+
+        # ---------- remove ingredient (deactivate) ----------
+        elif action == "remove":
+            warehouse_item_id = int(request.form["warehouse_item_id"])
+
+            cur.execute("""
+                update Recipe
+                set is_active = 0
+                where menu_item_id = %s and warehouse_item_id = %s
+            """, (menu_item_id, warehouse_item_id))
+
+            conn.commit()
+            return redirect(url_for("edit_recipe", menu_item_id=menu_item_id))
+        
+        # ---- reactivate ingredient ----
+        elif action == "activate":
+            warehouse_item_id = int(request.form["warehouse_item_id"])
+
+            cur.execute("""
+                update Recipe
+                set is_active = 1
+                where menu_item_id = %s and warehouse_item_id = %s
+            """, (menu_item_id, warehouse_item_id))
+
+            conn.commit()
+            return redirect(url_for("edit_recipe", menu_item_id=menu_item_id))
+
+
+    error = request.args.get("error")
+
+    cur.execute("""
+        select r.warehouse_item_id, w.item_name, r.quantity_required, w.unit_of_measure, r.is_active
+        from Recipe r
+        join Warehouse_Item w on r.warehouse_item_id = w.item_id
+        where r.menu_item_id = %s 
+        order by w.item_name
+    """, (menu_item_id,))
+    ingredients = cur.fetchall()
+
+    # warehouse items for dropdown
+    cur.execute("""
+        select item_id, item_name, unit_of_measure
+        from Warehouse_Item
+        order by item_name
+    """)
+    warehouse_items = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "edit_recipe.html",
+        menu_item=menu_item,
+        ingredients=ingredients,
+        warehouse_items=warehouse_items,
+        error=error
+    )
+
+
 @app.route("/receipt/<int:order_id>")
 @login_required
 def receipt(order_id):
@@ -1253,7 +1473,6 @@ def employees_dashboard():
     field = request.args.get("field")
     search = request.args.get("search")
 
-    # NEW
     sort = request.args.get("sort", "emp_id")
     order = request.args.get("order", "asc")
     order = "desc" if order == "desc" else "asc"
@@ -1283,27 +1502,40 @@ def employees_dashboard():
     if search and field in text_fields:
         column = text_fields[field]
         cur.execute(f"""
-            SELECT *
-            FROM Employee
-            WHERE {column} LIKE %s
-            ORDER BY {sort_column} {order}
-        """, (f"%{search}%",))
+        select e.*, (select count(*)
+                        from timelog t
+                        where t.emp_id = e.emp_id
+                        and t.shift_end is null
+                    ) > 0 as clocked_in
+        from employee e
+        where {column} like %s
+        order by {sort_column} {order}
+    """)
 
     elif search and field in numeric_fields:
         column = numeric_fields[field]
         cur.execute(f"""
-            SELECT *
-            FROM Employee
-            WHERE {column} = %s
-            ORDER BY {sort_column} {order}
-        """, (search,))
+        select e.*, (select count(*)
+                        from timelog t
+                        where t.emp_id = e.emp_id
+                        and t.shift_end is null
+                    ) > 0 as clocked_in
+        from employee e
+        where {column} = %s
+        order by {sort_column} {order}
+    """)
 
     else:
         cur.execute(f"""
-            SELECT *
-            FROM Employee
-            ORDER BY {sort_column} {order}
-        """)
+        select e.*, (select count(*)
+                        from timelog t
+                        where t.emp_id = e.emp_id
+                        and t.shift_end is null
+                    ) > 0 as clocked_in
+        from employee e
+        order by {sort_column} {order}
+    """)
+
 
     employees = cur.fetchall()
     cur.close()
@@ -1959,37 +2191,43 @@ def warehouse_items():
     field = request.args.get("field")
     search = request.args.get("search")
 
-    text_fields = {"item_name": "item_name",
-                    "unit_of_measure": "unit_of_measure"}
+    text_fields = {
+        "item_name": "item_name",
+        "unit_of_measure": "unit_of_measure"
+    }
 
-    numeric_fields = {"item_id": "item_id",
-                        "stock_quantity": "stock_quantity",
-                        "reorder_level": "reorder_level"}
+    numeric_fields = {
+        "item_id": "item_id",
+        "stock_quantity": "stock_quantity",
+        "reorder_level": "reorder_level"
+    }
 
     if search and field in text_fields:
         column = text_fields[field]
-
         cur.execute(f"""
-            select *
-            from Warehouse_Item
-            where {column} like %s
-            order by item_id
+            SELECT *,
+                   (stock_quantity <= reorder_level) AS is_low_stock
+            FROM Warehouse_Item
+            WHERE {column} LIKE %s
+            ORDER BY item_id
         """, (f"%{search}%",))
 
     elif search and field in numeric_fields:
         column = numeric_fields[field]
         cur.execute(f"""
-            select *
-            from Warehouse_Item
-            where {column} = %s
-            order by item_id
+            SELECT *,
+                   (stock_quantity <= reorder_level) AS is_low_stock
+            FROM Warehouse_Item
+            WHERE {column} = %s
+            ORDER BY item_id
         """, (search,))
 
     else:
         cur.execute("""
-            select *
-            from Warehouse_Item
-            order by item_id
+            SELECT *,
+                   (stock_quantity <= reorder_level) AS is_low_stock
+            FROM Warehouse_Item
+            ORDER BY item_id
         """)
 
     items = cur.fetchall()
@@ -1997,6 +2235,7 @@ def warehouse_items():
     conn.close()
 
     return render_template("warehouse.html", items=items)
+
 
 # adding new warehouse items
 @app.route("/warehouse/new", methods=["GET", "POST"])
@@ -2012,7 +2251,7 @@ def add_warehouse_item():
 
     if request.method == "POST":
         name = request.form["item_name"]
-        stock = request.form["stock_quantity"]
+        stock = 0
         reorder = request.form["reorder_level"]
         unit = request.form["unit_of_measure"]
 
@@ -2400,11 +2639,560 @@ def toggle_supplier_item_supplying():
 
     return redirect(url_for("supplier_items"))
 
+@app.route("/supplier_items/new", methods=["GET", "POST"])
+@login_required
+@admin_required
+def add_supplier_item():
+
+    if session.get("position_title") != "manager":
+        abort(403)
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    error = None
+
+    if request.method == "POST":
+        supplier_id = request.form["supplier_id"]
+        item_id = request.form["warehouse_item_id"]
+        unit_price = request.form["unit_price"]
+        avg_days = request.form["avg_delivery_days"]
+
+        try:
+            cur.execute("""
+                insert into Supplier_Item
+                    (supplier_id, warehouse_item_id, unit_price, avg_delivery_days, is_supplying)
+                values (%s, %s, %s, %s, 1)
+            """, (supplier_id, item_id, unit_price, avg_days))
+
+            conn.commit()
+            cur.close()
+            conn.close()
+            return redirect(url_for("supplier_items"))
+
+        except mysql.connector.IntegrityError:
+            conn.rollback()
+            error = "This supplier already supplies this item."
+
+    # GET data for dropdowns
+    cur.execute("select supplier_id, supplier_name, phone_number from Supplier order by supplier_name")
+    suppliers = cur.fetchall()
+
+    cur.execute("""
+        select item_id, item_name, unit_of_measure
+        from Warehouse_Item
+        order by item_name
+    """)
+    items = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "supplier_items_form.html",
+        supplier_item=None,
+        suppliers=suppliers,
+        items=items,
+        error=error
+    )
+
+@app.route("/supplier_items/<int:supplier_id>/<int:item_id>/edit", methods=["GET", "POST"])
+@login_required
+@admin_required
+def edit_supplier_item(supplier_id, item_id):
+
+    if session.get("position_title") != "manager":
+        abort(403)
+
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    if request.method == "POST":
+        unit_price = request.form["unit_price"]
+        avg_days = request.form["avg_delivery_days"]
+
+        cur.execute("""
+            update Supplier_Item
+            set unit_price = %s,
+                avg_delivery_days = %s
+            where supplier_id = %s
+              and warehouse_item_id = %s
+        """, (unit_price, avg_days, supplier_id, item_id))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return redirect(url_for("supplier_items"))
+
+    # GET existing relationship
+    cur.execute("""
+        select s.supplier_name, 
+               w.item_name,
+               w.unit_of_measure,
+               si.unit_price,
+               si.avg_delivery_days
+        from Supplier_Item si
+        join Supplier s on si.supplier_id = s.supplier_id
+        join Warehouse_Item w on si.warehouse_item_id = w.item_id
+        where si.supplier_id = %s
+          and si.warehouse_item_id = %s
+    """, (supplier_id, item_id))
+
+    supplier_item = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    if not supplier_item:
+        return "Supplier item not found", 404
+
+    return render_template(
+        "supplier_items_form.html",
+        supplier_item=supplier_item
+    )
+
+
+@app.route("/purchases")
+@login_required
+@admin_required
+def purchases_list():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    field = request.args.get("field")
+    search = request.args.get("search")
+
+    text_fields = {
+        "purchase_date": "purchase_date",
+        "purchase_status": "purchase_status",
+        "supplier_name": "supplier_name"
+    }
+
+    numeric_fields = {
+        "purchase_id": "purchase_id",
+        "total_cost": "total_cost"
+    }
+
+    if search and field in text_fields:
+        column = text_fields[field]
+        cur.execute(f"""
+            select p.purchase_id, p.purchase_date, p.total_cost, p.purchase_status, s.supplier_name
+            from Purchase p
+            join Supplier s on p.supplier_id = s.supplier_id
+            where {column} like %s
+            order by purchase_id desc
+        """, (f"%{search}%",))
+
+    elif search and field in numeric_fields:
+        column = numeric_fields[field]
+        cur.execute(f"""
+            select p.purchase_id, p.purchase_date, p.total_cost, p.purchase_status, s.supplier_name
+            from Purchase p
+            join Supplier s on p.supplier_id = s.supplier_id
+            where {column} = %s
+            order by purchase_id desc
+        """, (search,))
+
+    else:
+        cur.execute("""
+            select p.purchase_id, p.purchase_date, p.total_cost, p.purchase_status, s.supplier_name
+            from Purchase p
+            join Supplier s on p.supplier_id = s.supplier_id
+            order by purchase_id desc
+        """)
+
+    purchases = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return render_template("purchases.html", purchases=purchases)
+
+@app.route("/start_purchase", methods=["GET", "POST"])
+@login_required
+@admin_required
+def start_purchase():
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+
+    # -----------------------------
+    # POST → create purchase
+    # -----------------------------
+    if request.method == "POST":
+        supplier_id = int(request.form["supplier_id"])
+
+        cur.execute("""
+            insert into Purchase
+            (purchase_date, total_cost, purchase_status, emp_id, supplier_id)
+            values (curdate(), 0, 'draft', %s, %s)
+        """, (session["emp_id"], supplier_id))
+
+        conn.commit()
+        purchase_id = cur.lastrowid
+
+        cur.close()
+        conn.close()
+
+        return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+    # -----------------------------
+    # GET → load page data
+    # -----------------------------
+
+    # optional selected item (for filtering suppliers)
+    selected_item_id = request.args.get("item_id", type=int)
+
+    # all warehouse items (for dropdown)
+    cur.execute("""
+        select item_id, item_name
+        from Warehouse_Item
+        order by item_name
+    """)
+    warehouse_items = cur.fetchall()
+
+    # suppliers logic
+    if selected_item_id:
+        # only suppliers that supply the selected item
+        cur.execute("""
+            select distinct s.supplier_id, s.supplier_name
+            from Supplier s
+            join Supplier_Item si
+              on s.supplier_id = si.supplier_id
+            where s.is_active = 1
+              and si.is_supplying = 1
+              and si.warehouse_item_id = %s
+            order by s.supplier_name
+        """, (selected_item_id,))
+    else:
+        # all active suppliers
+        cur.execute("""
+            select supplier_id, supplier_name
+            from Supplier
+            where is_active = 1
+            order by supplier_name
+        """)
+
+    suppliers = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "start_purchase.html",
+        suppliers=suppliers,
+        warehouse_items=warehouse_items,
+        selected_item_id=selected_item_id
+    )
+
+
+@app.route("/purchase/<int:purchase_id>", methods=["GET", "POST"])
+@login_required
+@admin_required
+def purchase_page(purchase_id):
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    message = None
+
+    cur.execute("""
+        select *
+        from Purchase
+        where purchase_id = %s
+    """, (purchase_id,))
+    purchase = cur.fetchone()
+
+    if not purchase:
+        cur.close()
+        conn.close()
+        return "Purchase not found", 404
+
+    total_cost = purchase["total_cost"]
+
+    cur.execute("""
+        select sum(amount) as paid_amount
+        from Payment
+        where purchase_id = %s
+        and payment_type = 'purchase'
+    """, (purchase_id,))
+    row = cur.fetchone()
+
+    paid_amount = row["paid_amount"]
+    if paid_amount is None:
+        paid_amount = 0
+
+    remaining_amount = purchase["total_cost"] - paid_amount
+    if remaining_amount < 0:
+        remaining_amount = 0
+
+    if paid_amount == 0:
+        payment_status = "unpaid"
+    elif paid_amount < total_cost:
+        payment_status = "partially_paid"
+    else:
+        payment_status = "paid"
+
+
+    # POST actions 
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        # ---------- add item -------------
+        if action == "add":
+            # we only allow adding in draft
+            if purchase["purchase_status"] != "draft":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            item_id = int(request.form["warehouse_item_id"])
+            quantity = float(request.form["quantity"])
+
+            supplier_id = purchase["supplier_id"]
+
+            # get unit price
+            cur.execute("""
+                select unit_price
+                from Supplier_Item
+                where supplier_id = %s
+                and warehouse_item_id = %s
+                and is_supplying = 1
+            """, (supplier_id, item_id))
+            supply = cur.fetchone()
+
+            if not supply:
+                conn.rollback()
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            unit_price = supply["unit_price"]
+
+            # check if item already exists in this purchase
+            cur.execute("""
+                select quantity
+                from Purchase_Item
+                where purchase_id = %s
+                and warehouse_item_id = %s
+            """, (purchase_id, item_id))
+            existing = cur.fetchone()
+
+            if existing: # if quantity >0
+                # increment quantity
+                cur.execute("""
+                    update Purchase_Item
+                    set quantity = quantity + %s
+                    where purchase_id = %s
+                    and warehouse_item_id = %s
+                """, (quantity, purchase_id, item_id))
+            else:
+                # insert new row
+                cur.execute("""
+                    insert into Purchase_Item
+                    (purchase_id, warehouse_item_id, quantity, unit_price)
+                    values (%s, %s, %s, %s)
+                """, (purchase_id, item_id, quantity, unit_price))
+
+            # update total cost
+            cur.execute("""
+                update Purchase
+                set total_cost = total_cost + %s
+                where purchase_id = %s
+            """, (quantity * unit_price, purchase_id))
+
+            conn.commit()
+            return redirect(url_for("purchase_page", purchase_id=purchase_id))
+        
+        # ------- decrement item ---------
+        elif action == "decrement":
+            if purchase["purchase_status"] != "draft":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            item_id = int(request.form["warehouse_item_id"])
+
+            # get current quantity & unit price
+            cur.execute("""
+                select quantity, unit_price
+                from Purchase_Item
+                where purchase_id = %s
+                and warehouse_item_id = %s
+            """, (purchase_id, item_id))
+            row = cur.fetchone()
+
+            if not row:
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            quantity = row["quantity"]
+            unit_price = row["unit_price"]
+
+            if quantity > 1:
+                # decrement quantity
+                cur.execute("""
+                    update Purchase_Item
+                    set quantity = quantity - 1
+                    where purchase_id = %s
+                    and warehouse_item_id = %s
+                """, (purchase_id, item_id))
+            else:
+                # quantity becomes 0 so remove row bc purchase is still a draft
+                cur.execute("""
+                    delete from Purchase_Item
+                    where purchase_id = %s
+                    and warehouse_item_id = %s
+                """, (purchase_id, item_id))
+
+            # update total cost
+            cur.execute("""
+                update Purchase
+                set total_cost = total_cost - %s
+                where purchase_id = %s
+            """, (unit_price, purchase_id))
+
+            conn.commit()
+            return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+        
+        # ---------- confirm purchase ---------------
+        # only updating the status meaning purchase is confirmed not yet delivered
+        elif action == "confirm":
+            if purchase["purchase_status"] != "draft":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            cur.execute("""
+                update Purchase
+                set purchase_status = 'confirmed'
+                where purchase_id = %s
+            """, (purchase_id,))
+
+            conn.commit()
+            return redirect(url_for("purchase_page", purchase_id=purchase_id))
+        
+        # --------- deliverd purchase ----------
+        elif action == "deliver":
+            if purchase["purchase_status"] != "confirmed":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            # get all items in this purchase
+            cur.execute("""
+                select warehouse_item_id, quantity
+                from Purchase_Item
+                where purchase_id = %s
+            """, (purchase_id,))
+            items = cur.fetchall()
+
+            for it in items:
+                # update warehouse stock
+                cur.execute("""
+                    update Warehouse_Item
+                    set stock_quantity = stock_quantity + %s
+                    where item_id = %s
+                """, (it["quantity"], it["warehouse_item_id"]))
+
+                # inser stock movement
+                cur.execute("""
+                    insert into Stock_Movement
+                    (movement_type, quantity_change, movement_date, warehouse_item_id, emp_id)
+                    values ('purchase', %s, now(), %s, %s)
+                """, (it["quantity"], it["warehouse_item_id"], session["emp_id"]))
+
+            # mark as delivered
+            cur.execute("""
+                update Purchase
+                set purchase_status = 'delivered'
+                where purchase_id = %s
+            """, (purchase_id,))
+
+            conn.commit()
+            return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+
+        # -------- pay -----------
+        elif action == "pay":
+            if purchase["purchase_status"] == "cancelled":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+            
+            if payment_status == "paid":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            method = request.form["method"]
+            payment_kind = request.form["payment_kind"]
+
+            if remaining_amount <= 0:
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            if payment_kind == "full":
+                amount = remaining_amount
+            else:
+                amount = float(request.form.get("amount", 0))
+
+                if amount <= 0 or amount > remaining_amount:
+                    return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            cur.execute("""
+                insert into Payment
+                (payment_date, amount, method, payment_type, purchase_id)
+                values (now(), %s, %s, 'purchase', %s)
+            """, (amount, method, purchase_id))
+
+            conn.commit()
+            return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+
+        
+        # ------ cancel purchase ------
+        elif action == "cancel":
+            if purchase["purchase_status"] != "draft":
+                return redirect(url_for("purchase_page", purchase_id=purchase_id))
+
+            cur.execute("""
+                update Purchase
+                set purchase_status = 'cancelled'
+                where purchase_id = %s
+            """, (purchase_id,))
+
+            conn.commit()
+            return redirect(url_for("purchases_list"))
+
+
+    # ---------- PAGE DATA ----------
+    cur.execute("""
+        select *
+        from Purchase
+        where purchase_id = %s
+    """, (purchase_id,))
+    purchase = cur.fetchone()
+
+    cur.execute("""
+        select pi.warehouse_item_id, w.item_name,
+               pi.quantity, pi.unit_price, w.unit_of_measure
+        from Purchase_Item pi
+        join Warehouse_Item w on pi.warehouse_item_id = w.item_id
+        where pi.purchase_id = %s
+    """, (purchase_id,))
+    items = cur.fetchall()
+
+
+    supplier_id = purchase["supplier_id"]
+    cur.execute("""
+        select w.item_id, w.item_name, w.unit_of_measure
+        from Warehouse_Item w
+        join Supplier_Item s
+        on s.warehouse_item_id = w.item_id
+        where s.supplier_id = %s
+        and s.is_supplying = 1 """, 
+        (supplier_id,))
+    
+    warehouse_items = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return render_template(
+        "purchase.html",
+        purchase=purchase,
+        items=items,
+        warehouse_items=warehouse_items,
+        remaining_amount=remaining_amount,
+        payment_status=payment_status,
+        message=message
+    )
+
 
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template("404.html"), 404
-
 
 @app.errorhandler(500)
 def internal_server_error(e):
